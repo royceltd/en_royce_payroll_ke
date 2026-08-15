@@ -1,0 +1,55 @@
+{
+ "actions": [],
+ "creation": "2026-08-15 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "band_number",
+  "lower_bound",
+  "upper_bound",
+  "rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "band_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Band",
+   "reqd": 1
+  },
+  {
+   "fieldname": "lower_bound",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Lower Bound (KES)",
+   "reqd": 1
+  },
+  {
+   "description": "Leave blank for the open-ended top band.",
+   "fieldname": "upper_bound",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Upper Bound (KES)"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Rate",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-15 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Royce Payroll Ke",
+ "name": "Payroll Rates PAYE Band",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

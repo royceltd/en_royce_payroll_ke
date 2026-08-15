@@ -1,0 +1,230 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "field:effective_from",
+ "creation": "2026-08-15 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "effective_from",
+  "disabled",
+  "column_break_1",
+  "amended_from",
+  "paye_bands_section",
+  "paye_bands",
+  "nssf_section",
+  "nssf_tier_i_limit",
+  "nssf_tier_ii_limit",
+  "column_break_nssf",
+  "nssf_employee_rate",
+  "nssf_employer_rate",
+  "shif_section",
+  "shif_rate",
+  "column_break_shif",
+  "shif_minimum",
+  "ahl_section",
+  "ahl_employee_rate",
+  "column_break_ahl",
+  "ahl_employer_rate",
+  "other_section",
+  "nita_amount",
+  "column_break_other",
+  "personal_relief"
+ ],
+ "fields": [
+  {
+   "description": "The date this rate version takes effect. When several versions exist, the one with the latest Effective From on or before the payroll date is used.",
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Effective From",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "description": "Retire this rate version without deleting it — kept for audit history.",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Payroll Rates",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "paye_bands_section",
+   "fieldtype": "Section Break",
+   "label": "PAYE Bands"
+  },
+  {
+   "description": "Exactly 5 bands, contiguous and ascending. Band 5 (the last row) is open-ended — leave its Upper Bound blank.",
+   "fieldname": "paye_bands",
+   "fieldtype": "Table",
+   "label": "PAYE Bands",
+   "options": "Payroll Rates PAYE Band",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nssf_section",
+   "fieldtype": "Section Break",
+   "label": "NSSF"
+  },
+  {
+   "fieldname": "nssf_tier_i_limit",
+   "fieldtype": "Currency",
+   "label": "NSSF Tier I Limit (KES)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nssf_tier_ii_limit",
+   "fieldtype": "Currency",
+   "label": "NSSF Tier II Limit (KES)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_nssf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nssf_employee_rate",
+   "fieldtype": "Percent",
+   "label": "NSSF Employee Rate",
+   "reqd": 1
+  },
+  {
+   "description": "Modelled separately from the employee rate. They happen to match today but nothing guarantees they always will.",
+   "fieldname": "nssf_employer_rate",
+   "fieldtype": "Percent",
+   "label": "NSSF Employer Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shif_section",
+   "fieldtype": "Section Break",
+   "label": "SHIF"
+  },
+  {
+   "fieldname": "shif_rate",
+   "fieldtype": "Percent",
+   "label": "SHIF Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_shif",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shif_minimum",
+   "fieldtype": "Currency",
+   "label": "SHIF Minimum (KES)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ahl_section",
+   "fieldtype": "Section Break",
+   "label": "Affordable Housing Levy"
+  },
+  {
+   "fieldname": "ahl_employee_rate",
+   "fieldtype": "Percent",
+   "label": "AHL Employee Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ahl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Modelled separately from the employee rate for the same reason as NSSF above.",
+   "fieldname": "ahl_employer_rate",
+   "fieldtype": "Percent",
+   "label": "AHL Employer Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "other_section",
+   "fieldtype": "Section Break",
+   "label": "NITA and Personal Relief"
+  },
+  {
+   "description": "Flat amount, employer-paid, per employee per month.",
+   "fieldname": "nita_amount",
+   "fieldtype": "Currency",
+   "label": "NITA Amount (KES)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_other",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Applied as a tax credit against computed PAYE, not as a deduction from taxable income.",
+   "fieldname": "personal_relief",
+   "fieldtype": "Currency",
+   "label": "Personal Relief (KES)",
+   "reqd": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-15 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Royce Payroll Ke",
+ "name": "Payroll Rates",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "effective_from",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

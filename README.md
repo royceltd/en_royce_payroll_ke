@@ -2,6 +2,13 @@
 
 Kenya PAYE, NSSF, SHIF and Housing Levy payroll compliance engine for ERPNext
 
+### Documentation
+
+- [`docs/user-guide.md`](docs/user-guide.md) — how to actually run this: creating a Payroll
+  Rates record, provisioning a company, assigning employees, updating rates.
+- [`docs/architecture.md`](docs/architecture.md) — why it's built this way: decisions, data
+  model, open questions.
+
 ### Installation
 
 You can install this app using the [bench](https://github.com/frappe/bench) CLI:
