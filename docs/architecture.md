@@ -226,6 +226,30 @@ self-healed from the corrected fixture. Worth remembering for any future fixture
 not just this one: **bump `modified` by hand whenever hand-editing an already-synced fixture file,
 or the change silently won't apply to a site where the old version already ran.**
 
+## Session 5 — Bank Payroll Advice, on request, with notes taken from `navari_csf_ke`
+
+Studied `navari_csf_ke`'s current implementation in full before building — not the diff seen a few
+sessions back, the actual current file. Kept its genuinely good ideas (bank code/branch code as
+real columns, per-bank subtotals in the report summary, since a real advice file gets split per
+bank before submission) and deliberately diverged on one design point: `csf_ke` copies bank fields
+onto the Salary Slip at creation time via a `doc_events` override; this version reads them straight
+off Employee instead. A bank advice report generates the payment file for the *current* run, so
+the employee's *current* bank details are what's wanted — copying them onto historical slips adds
+a sync mechanism, and a way for it to drift, to solve a problem this report doesn't have.
+
+Three new Employee fields (`royce_bank_branch_name`, `royce_bank_code`, `royce_branch_code` —
+`bank_name` and `bank_ac_no` are already core ERPNext, verified before assuming, same discipline as
+every other field added in this app), namespaced the same way as everything else. Verified against
+real data: both test employees given real bank details, net pay for both matched this session's
+own earlier hand-verified deduction figures exactly (128,753 and 70,442), and the per-bank summary
+grouped and totalled correctly.
+
+Also added to the workspace and sidebar this time *with* the modified-timestamp lesson already
+applied, not relearned — checked it landed correctly on the first `migrate`, not after a second fix.
+
+Seven reports now exist. Still not built: `royce_provision`, HELB (parked, no client need), and the
+HR/Payroll + Finance/Accounting pointer cards from the discoverability plan.
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,

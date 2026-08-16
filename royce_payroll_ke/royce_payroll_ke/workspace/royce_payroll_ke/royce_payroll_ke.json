@@ -100,9 +100,19 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya Bank Payroll Advice",
+   "link_count": 0,
+   "link_to": "Kenya Bank Payroll Advice",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-17 00:00:00.000000",
+ "modified": "2026-08-17 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "Royce Payroll Ke",
  "name": "Royce Payroll Ke",

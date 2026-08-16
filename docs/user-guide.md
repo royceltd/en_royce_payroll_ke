@@ -189,10 +189,19 @@ old assignment silently computing new-rate numbers on stale formulas.
 
 ## 7A. Running the statutory reports
 
-Six reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
+Seven reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
 Contributions**, **Kenya Housing Levy Contributions**, **Kenya NITA Contributions**, **Kenya P10A
-Monthly Return**, and **Kenya P9A Tax Deduction Card**. `Ctrl+K`, type the name, or find them via
-`/app/query-report/<name>`.
+Monthly Return**, **Kenya P9A Tax Deduction Card**, and **Kenya Bank Payroll Advice**. `Ctrl+K`,
+type the name, find them via `/app/query-report/<name>`, or open the **Royce Payroll Ke** workspace
+from the app switcher — all seven are listed there under Statutory Reports.
+
+- **Bank Payroll Advice** — filter by Company and a From/To Date range; optionally narrow to one
+  **Bank Name** if you need a separate file per receiving bank, which is normal practice before
+  submission. Reads bank details **live off the Employee record**, not a snapshot on the slip — it
+  always reflects the employee's current bank details, which is what a payment run actually needs.
+  Requires **Bank Name** and **Account No** (both core ERPNext fields) plus **Bank Code**,
+  **Bank Branch**, and **Branch Code** (`royce_bank_code`, `royce_bank_branch_name`,
+  `royce_branch_code` — blank until filled in on the Employee).
 
 - **NSSF / SHIF / Housing Levy / NITA** — filter by Company and a From/To Date range. Housing Levy
   deliberately shows *both* employee and employer contributions summed, since that's what

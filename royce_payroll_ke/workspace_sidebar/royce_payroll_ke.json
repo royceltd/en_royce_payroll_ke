@@ -123,9 +123,21 @@
    "link_type": "Report",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Kenya Bank Payroll Advice",
+   "link_to": "Kenya Bank Payroll Advice",
+   "link_type": "Report",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-17 00:00:00.000000",
+ "modified": "2026-08-17 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "Royce Payroll Ke",
  "name": "Royce Payroll Ke",
