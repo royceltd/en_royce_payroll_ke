@@ -154,6 +154,20 @@ Hand-calculate one payslip independently before trusting a new Payroll Rates ver
 company's setup — that's not optional. The generator faithfully encodes the formulas it's given;
 it can't catch an error in the input data (a mistyped rate, a wrong band boundary) by itself.
 
+**A faster structural check, before you get that far:** `verify(company)` confirms the 22
+components exist with formulas, every account has the correct Account Type, and the current Salary
+Structure has the right rows in the right order — without touching any employee data, so it's safe
+to run against a real client's site at any time, not just right after provisioning.
+
+```
+bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.setup.verify --kwargs '{"company": "Royce Technologies LTD"}'
+```
+
+Raises with every problem it finds, not just the first, and returns a clean summary if there aren't
+any. This checks structure, not arithmetic — it can tell you a component is missing its formula, not
+whether the formula computes the right number. Still hand-calculate at least one real payslip; this
+is a faster first check, not a replacement for one.
+
 ---
 
 ## 7. When KRA changes a rate

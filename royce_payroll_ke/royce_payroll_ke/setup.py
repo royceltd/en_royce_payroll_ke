@@ -688,3 +688,82 @@ def regenerate(rates=None):
 		structures[company] = ensure_salary_structure(company, rates_doc)
 
 	return {"rates": rates_doc.name, "structures": structures}
+
+
+@frappe.whitelist()
+def verify(company):
+	"""Read-only structural sanity check that provisioning actually produced
+	what it should. Deliberately does not create a synthetic employee/payslip
+	to test the math end to end — this needs to be safe to run against a real
+	client's site, and leaving fake test data in someone's production HR
+	system to prove a point is not acceptable. Checks structure instead: do
+	the 22 components exist with formulas, do the accounts exist with the
+	right Account Type, does the current Salary Structure have the right rows
+	in the right order. Raises with every problem found, not just the first —
+	whoever's onboarding a client wants the whole list at once, not one
+	failure per retry."""
+	problems = []
+
+	rates_name = PayrollRates.get_effective()
+	if not rates_name:
+		frappe.throw(_("No effective, submitted Payroll Rates record found."))
+	rates_doc = frappe.get_doc("Payroll Rates", rates_name)
+
+	expected_components = [spec["salary_component"] for spec in component_specs(rates_doc)]
+	for name in expected_components:
+		if not frappe.db.exists("Salary Component", name):
+			problems.append(_("Salary Component {0} is missing.").format(name))
+			continue
+		if not frappe.db.get_value("Salary Component", name, "formula"):
+			problems.append(_("Salary Component {0} has no formula.").format(name))
+
+	abbr = frappe.db.get_value("Company", company, "abbr")
+	if not abbr:
+		frappe.throw(_("Company {0} not found.").format(company))
+
+	for account_name, _parent, account_type in STATUTORY_PAYABLE_ACCOUNTS + EXPENSE_ACCOUNTS:
+		full_name = f"{account_name} - {abbr}"
+		actual_type = frappe.db.get_value("Account", full_name, "account_type")
+		if actual_type != account_type:
+			problems.append(
+				_("Account {0} has Account Type '{1}', expected '{2}'.").format(
+					full_name, actual_type, account_type
+				)
+			)
+
+	payable_name = f"Payroll Payable - {abbr}"
+	if frappe.db.get_value("Account", payable_name, "account_type") != "Payable":
+		problems.append(_("Account {0} does not have Account Type 'Payable'.").format(payable_name))
+
+	structure_name = f"{abbr} Payroll Structure {rates_name}"
+	if not frappe.db.exists("Salary Structure", structure_name):
+		problems.append(_("Salary Structure {0} is missing.").format(structure_name))
+	else:
+		structure = frappe.get_doc("Salary Structure", structure_name)
+		actual_earnings = [d.salary_component for d in structure.earnings]
+		actual_deductions = [d.salary_component for d in structure.deductions]
+		if actual_earnings != EARNINGS_ORDER:
+			problems.append(
+				_("{0}'s earnings row order is wrong — got {1}, expected {2}.").format(
+					structure_name, actual_earnings, EARNINGS_ORDER
+				)
+			)
+		if actual_deductions != DEDUCTIONS_ORDER:
+			problems.append(
+				_("{0}'s deductions row order is wrong — got {1}, expected {2}.").format(
+					structure_name, actual_deductions, DEDUCTIONS_ORDER
+				)
+			)
+
+	if problems:
+		frappe.throw(_("Payroll provisioning verification failed for {0}:<br>{1}").format(
+			company, "<br>".join(problems)
+		))
+
+	return {
+		"company": company,
+		"rates": rates_name,
+		"components_checked": len(expected_components),
+		"structure": structure_name,
+		"status": "PASS",
+	}

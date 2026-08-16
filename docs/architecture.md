@@ -250,6 +250,37 @@ applied, not relearned — checked it landed correctly on the first `migrate`, n
 Seven reports now exist. Still not built: `royce_provision`, HELB (parked, no client need), and the
 HR/Payroll + Finance/Accounting pointer cards from the discoverability plan.
 
+## Session 6 — `royce_provision`, and the verification gate that should have shipped with it
+
+Before building the orchestrator, closed a real gap it depends on: **there was no verification gate
+actually shipped in `royce_payroll_ke` at all** — every check across every prior session was an
+ad-hoc scratch script, not something `royce_provision` (or anyone else) could call. Built
+`verify(company)`: a read-only structural check (all 22 components exist with formulas, every
+account has the right Account Type, the current Salary Structure has the right rows in the right
+order) — deliberately *not* a synthetic payslip. A real onboarding gate has to be safe to run
+against a real client's site, and leaving a fake test employee's payslip in someone's production HR
+system to prove a point isn't acceptable.
+
+**First real run immediately found genuine, pre-existing drift, not a manufactured example.**
+`mytesterp.localhost` had a blank Account Type on `Housing Levy Payable` and a Salary Structure
+still under the old year-based naming — both predating fixes from earlier this session, never
+retroactively applied because nothing had re-run `provision()` there since. Investigated before
+fixing, confirmed the cause, then used the remedy the design already provides: ran `provision()`
+again. Self-healed both, `verify()` passed cleanly afterward with all 22 components checked.
+`etims.localhost` was already clean — checked, not assumed, given the two sites' independent
+history.
+
+**Then proved `verify()` actually catches problems, not just confirms the happy path**: broke an
+account's type and deleted a component's formula simultaneously, confirmed it reported *both* in
+one message rather than stopping at the first, restored, confirmed it passed again.
+
+**Checked what `royce_provision` would actually be orchestrating before designing it, rather than
+assume `royce_etims` was ready.** It isn't — no `provision()`-style entry point exists there yet,
+and its own architecture doc is explicit that KRA registration needs a human entering a real TIN
+and Apigee credentials, so it can never be a no-input call the way payroll is. `royce_provision`
+built to fully orchestrate `royce_payroll_ke` now, with a clean, documented extension point for
+`royce_etims` rather than a stub pretending it works.
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,
