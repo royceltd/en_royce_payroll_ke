@@ -281,6 +281,15 @@ and Apigee credentials, so it can never be a no-input call the way payroll is. `
 built to fully orchestrate `royce_payroll_ke` now, with a clean, documented extension point for
 `royce_etims` rather than a stub pretending it works.
 
+**`royce_provision` is now built** — see its own `docs/architecture.md`
+(`github.com/royceltd/en_royce_provision`). It calls `royce_payroll_ke.setup.provision()` and the
+`verify()` gate above in order, and owns creating the Company itself (the one piece of onboarding
+setup that belongs to neither compliance app individually — `ensure_accounts()` needs a properly
+Kenya-created Company to already have its standard Chart of Accounts template applied, and
+something has to make that true for a brand new client). Verified end to end against a company
+that had never existed before: Chart of Accounts, all 22 components, and a passing `verify()`, in
+one call.
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,
