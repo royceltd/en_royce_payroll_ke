@@ -92,3 +92,34 @@ def statutory_component_report(filters, components, amount_label, id_fieldname=N
 		data.append(row)
 
 	return columns, data
+
+
+def card_type_sums(slip_names, fieldname):
+	"""Sum Salary Detail amounts per classification category across one or more
+	Salary Slips. `fieldname` is 'royce_p9a_tax_deduction_card_type' or
+	'royce_p10a_tax_deduction_card_type' — whichever KRA return this is for.
+	Returns {category: amount}, generic over whatever's actually tagged rather
+	than a hardcoded component list, so a future component (a new allowance, a
+	benefit-in-kind) shows up correctly without the report itself changing —
+	same pattern proven compatible against csf_ke's own P9A implementation."""
+	if not slip_names:
+		return {}
+
+	salary_detail = frappe.qb.DocType("Salary Detail")
+	salary_component = frappe.qb.DocType("Salary Component")
+	card_type_field = salary_component[fieldname]
+
+	rows = (
+		frappe.qb.from_(salary_detail)
+		.inner_join(salary_component)
+		.on(salary_detail.salary_component == salary_component.name)
+		.select(card_type_field, Sum(salary_detail.amount))
+		.where(
+			salary_detail.parent.isin(slip_names)
+			& (salary_detail.parenttype == "Salary Slip")
+			& (card_type_field != "")
+		)
+		.groupby(card_type_field)
+	).run()
+
+	return {row[0]: flt(row[1]) for row in rows if row[0]}

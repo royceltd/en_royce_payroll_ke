@@ -73,10 +73,42 @@ the one the user's own Payroll Entry testing produced) and hand-verified every n
 employer sides — deliberately both, since `Housing Levy Payable` accumulates both together and a
 report showing only the employee side wouldn't reconcile against it).
 
-Still not built: P9A and P10A (the two more involved ones — P9A specifically needs a PDF/print
-template, matching csf_ke's own certificate-style output), the `royce_provision` orchestration
-app, and the bank fields (deferred — not needed until the Bank Advice report, which isn't in this
-batch).
+**Built and verified since: P9A and P10A, both compliance-critical.** P10A (monthly return) and
+P9A (annual certificate, with a real PDF via `get_pdf()` — this is a document handed to an
+employee, not just a screen report) both share a new `report_utils.card_type_sums()` helper:
+generic aggregation by P9A/P10A classification, same proven pattern as the single-component
+reports, reusable across both.
+
+**Sixth finding, and this one would have shipped a silently-wrong report if trusted instead of
+checked:** planned to read `Taxable Income` and `Gross PAYE` directly off Salary Detail for the
+P9A's "Chargeable Pay" / "Tax Charged" columns, the same way the other reports read real
+components. Checked the HRMS source first — `add_structure_component`'s statistical-component
+branch never calls `update_component_row`; its own comment says so directly ("row for statistical
+component is not added to salary slip"). **Statistical components are never persisted as Salary
+Detail rows at all** — they exist only as in-memory values during calculation. Querying for them
+would have silently returned zero on every P9A ever generated. Fixed by deriving both values
+arithmetically from what *is* persisted instead — `slip.gross_pay` minus the real NSSF/SHIF/Housing
+Levy rows for Chargeable Pay, PAYE Tax plus Payroll Rates' Personal Relief for Tax Charged — the
+same relationships the generator itself uses, not a workaround. One honest, documented residual
+limitation: an employee whose Gross PAYE fell below the relief threshold has PAYE = 0 with no
+persisted trace of the true pre-relief figure (the component's own `Condition` prevents it from
+being created at all in that case) — Tax Charged for that specific edge case is a reasonable
+derivation, not an exact one.
+
+**Also fixed while building this:** `frappe.db.get_value(..., "sum(amount)")` was already known
+broken (fifth finding) — the same Query Builder `Sum()` pattern was used throughout from the start
+this time, not rediscovered.
+
+Both reports verified against the same real August 2026 slip used throughout this doc, hand-traced
+independently, and the P9A's actual rendered PDF was read back and visually confirmed correct —
+right header, right row populated, right totals, other 11 months correctly zero.
+
+Still not built: the `royce_provision` orchestration app, the bank fields (deferred — not needed
+until the Bank Advice report), and the access-structure work from the previous session (own
+workspace polish, a Desktop Icon matching `royce_talk`/`royce_etims`, self-healing pointer cards in
+`Payroll` and `Accounting` for HR and Finance respectively) — deliberately set aside this session in
+favour of the two compliance-critical reports, per explicit CTO-level prioritisation: a report KRA
+expects and the app can't produce isn't a discoverability problem, it's a compliance gap.
 
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax

@@ -187,6 +187,36 @@ old assignment silently computing new-rate numbers on stale formulas.
 
 ---
 
+## 7A. Running the statutory reports
+
+Five reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
+Contributions**, **Kenya Housing Levy Contributions**, **Kenya P10A Monthly Return**, and **Kenya
+P9A Tax Deduction Card**. `Ctrl+K`, type the name, or find them via `/app/query-report/<name>`.
+
+- **NSSF / SHIF / Housing Levy** — filter by Company and a From/To Date range. Housing Levy
+  deliberately shows *both* employee and employer contributions summed, since that's what
+  `Housing Levy Payable` actually accumulates and a report showing only the employee side wouldn't
+  reconcile against it.
+- **P10A** — filter by Company and any date within the return month (only the month/year is used).
+  One row per employee for that month, shaped to match what iTax expects.
+- **P9A** — filter by Company, Fiscal Year, and **one specific Employee** — this is a
+  per-employee annual certificate, not a company-wide list. Twelve rows, one per calendar month,
+  zeros for months with no submitted slip. **For the actual PDF to hand to the employee**, don't
+  use the on-screen report's own export — call
+  `royce_payroll_ke.royce_payroll_ke.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate`
+  with `company`, `fiscal_year`, and `employee`, e.g.:
+  ```
+  bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate --kwargs '{"company": "Royce Technologies LTD", "fiscal_year": "2026", "employee": "HR-EMP-00001"}'
+  ```
+  (This is a whitelisted method — reachable over the API too, not only `bench execute`; a proper
+  "Download PDF" button on the report is on the list, not built yet.)
+
+**Both P9A and P10A read National ID and KRA PIN from the Employee record** (`royce_national_id`,
+`royce_kra_pin`) — blank on an employee until someone fills them in, same fields used by the NSSF
+and SHIF reports.
+
+---
+
 ## 8. Troubleshooting
 
 | Symptom | Likely cause |
@@ -195,6 +225,8 @@ old assignment silently computing new-rate numbers on stale formulas.
 | `provision()` throws about Payroll Rates not found | No Payroll Rates record is both submitted and has an Effective From on or before today — check status and date |
 | A component's amount looks wrong on a slip after a rate change | The employee is probably still on a Salary Structure Assignment pointing at the *old* rates version's structure — check which structure they're assigned to and whether it needs a new, dated assignment per section 7 |
 | "A field with the name ... already exists" during install | Another app already owns that exact field name on the same doctype — shouldn't happen with this app's own fields (they're namespaced `royce_p9a_...` / `royce_p10a_...` specifically to avoid this), but worth knowing if it ever shows up from a different app |
+| P9A/P10A show 0 for a column that should have a value | Check the Employee record has `royce_national_id`/`royce_kra_pin` filled in for identity columns; for amount columns, check the Salary Component actually has the right P9A/P10A card type set — blank means excluded on purpose |
+| P9A's "Tax Charged" looks slightly off for a very low earner | Expected, not a bug, for the specific case where Gross PAYE fell below the personal relief threshold — PAYE never gets created on that slip at all (its own Condition prevents it), so there's no persisted trace of the true pre-relief figure to derive from. See architecture.md's sixth finding. |
 
 ---
 
