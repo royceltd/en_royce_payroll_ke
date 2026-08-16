@@ -166,7 +166,38 @@ not a formula derived from gross pay, making it structurally closer to the guide
 Contribution pattern (flat, per-employee, via Additional Salary, not in the default Salary
 Structure) than to NSSF. Needs a new Salary Component and an Employee reference-number field before
 a report makes sense — a modeling decision, not just a report — held for explicit go-ahead rather
-than built alongside NITA.
+than built alongside NITA. Confirmed no current client has this need; parked accordingly, not
+built speculatively.
+
+## Session 4 — discoverability, revisited with a corrected priority
+
+Reconsidered the standing priority order out loud rather than default to it: `royce_provision`
+makes onboarding the *next* client easier, but discoverability makes the six reports already built
+and verified usable by the people at the *current* one, today. Re-ranked discoverability above
+`royce_provision` on that basis and built it first.
+
+**First, a wrong assumption caught before building on it:** had been describing "the auto-generated
+Royce Payroll Ke workspace" as if it were a real, persisted `Workspace` document. Checked before
+touching it — there was no `Workspace`, no `Workspace Sidebar`, nothing in the database at all for
+this app. What the earlier screenshot showed was Frappe's dynamic module-index rendering, not a
+stored document. Would have tried to "polish" something that didn't exist.
+
+**Built for real instead**, matching `royce_talk`'s own committed pattern exactly rather than
+reverse-engineering HRMS's more complex one: a `Workspace` (header, shortcuts to Payroll Rates and
+the two annual/monthly reports, a Setup card and a Statutory Reports card covering all six), a
+`Workspace Sidebar` (Home, a Setup section, a Reports section), and a `Desktop Icon` (`accounting`
+glyph — the same one HRMS's own Payroll icon uses, semantically correct — `gray` background,
+deliberately different from `royce_talk`'s `blue` for visual distinction in the app switcher; also
+discovered `bg_color` only has two valid values in this Frappe version, `gray` and `blue`, not
+assumed). All three hand-authored as fixture files and imported via `bench migrate` — the safe
+direction, unlike editing a live document — then verified by reading the actual database content
+back on **two separate sites**, confirming this travels with the app rather than being a
+one-site fluke. Also explicitly checked every sibling app's git tree stayed clean afterward, since
+that's exactly what went wrong the first time this was attempted against HRMS's own workspace.
+
+Not done yet: the self-healing pointer cards in `Payroll` (HR) and `Accounting` (Finance) — the
+third piece of the original three-part plan. This session's own workspace is real and complete;
+that part is still outstanding.
 
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax

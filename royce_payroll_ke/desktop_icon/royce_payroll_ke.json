@@ -1,0 +1,21 @@
+{
+ "app": "royce_payroll_ke",
+ "bg_color": "gray",
+ "creation": "2026-08-17 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "accounting",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Royce Payroll Ke",
+ "link_to": "Royce Payroll Ke",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-08-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Royce Payroll Ke",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}

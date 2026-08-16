@@ -1,0 +1,143 @@
+{
+ "app": "royce_payroll_ke",
+ "charts": [],
+ "content": "[{\"id\": \"rpk-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Royce Payroll KE</b></span>\", \"col\": 12}}, {\"id\": \"rpk-para\", \"type\": \"paragraph\", \"data\": {\"text\": \"Kenya PAYE, NSSF, SHIF, Housing Levy and NITA payroll compliance.\", \"col\": 12}}, {\"id\": \"rpk-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-shortcut-rates\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Payroll Rates\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p9a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kenya P9A Tax Deduction Card\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p10a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kenya P10A Monthly Return\", \"col\": 4}}, {\"id\": \"rpk-spacer-2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-card-setup\", \"type\": \"card\", \"data\": {\"card_name\": \"Setup\", \"col\": 4}}, {\"id\": \"rpk-card-reports\", \"type\": \"card\", \"data\": {\"card_name\": \"Statutory Reports\", \"col\": 4}}]",
+ "creation": "2026-08-17 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "accounting",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Royce Payroll Ke",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Setup",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Payroll Rates",
+   "link_count": 0,
+   "link_to": "Payroll Rates",
+   "link_type": "DocType",
+   "onboard": 1,
+   "description": "One record per rate version. Effective From, PAYE bands, NSSF/SHIF/AHL/NITA rates, personal relief.",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Statutory Reports",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya P9A Tax Deduction Card",
+   "link_count": 0,
+   "link_to": "Kenya P9A Tax Deduction Card",
+   "link_type": "Report",
+   "onboard": 1,
+   "description": "Annual, per employee. PDF certificate via download_certificate().",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya P10A Monthly Return",
+   "link_count": 0,
+   "link_to": "Kenya P10A Monthly Return",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya NSSF Contributions",
+   "link_count": 0,
+   "link_to": "Kenya NSSF Contributions",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya SHIF Contributions",
+   "link_count": 0,
+   "link_to": "Kenya SHIF Contributions",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya Housing Levy Contributions",
+   "link_count": 0,
+   "link_to": "Kenya Housing Levy Contributions",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Kenya NITA Contributions",
+   "link_count": 0,
+   "link_to": "Kenya NITA Contributions",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Royce Payroll Ke",
+ "name": "Royce Payroll Ke",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Payroll Rates",
+   "link_to": "Payroll Rates",
+   "stats_filter": "{}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Kenya P9A Tax Deduction Card",
+   "link_to": "Kenya P9A Tax Deduction Card",
+   "stats_filter": "{}",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "label": "Kenya P10A Monthly Return",
+   "link_to": "Kenya P10A Monthly Return",
+   "stats_filter": "{}",
+   "type": "Report"
+  }
+ ],
+ "title": "Royce Payroll Ke"
+}
