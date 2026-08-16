@@ -199,6 +199,33 @@ Not done yet: the self-healing pointer cards in `Payroll` (HR) and `Accounting` 
 third piece of the original three-part plan. This session's own workspace is real and complete;
 that part is still outstanding.
 
+**The Desktop Icon initially rendered as a bare letter avatar, not a glyph — traced to the actual
+frontend code, not guessed at.** `desktop_icon.html`'s render logic never uses the `icon` field
+name as a visual glyph at all — that field is only exposed as a data attribute. Real rendering
+happens either through `get_desktop_icon()` (a convention-based per-app icon lookup keyed off the
+label) or through `logo_url` pointing to an actual image; everything else falls through to a
+letter-avatar fallback, which is what was showing. Fixed by extracting the exact "accounting" path
+data from Frappe's own icon sprite (`frappe/public/icons/timeless/icons.svg`) — so it stays
+visually consistent with HRMS's own Payroll icon, which uses the same glyph — and rebuilding it as
+a self-contained, brand-colored two-layer badge SVG (tinted rounded square + solid glyph, teal
+rather than HRMS's green), matching the actual pattern HRMS ships for its own icons, not a
+themed/`currentColor` line icon (confirmed by reading `hrms`'s own shipped SVG directly rather than
+assumed) — a plain `<img>` tag doesn't inherit page theming, so a self-contained color was the
+correct choice, not a shortcut.
+
+**Second, separate bug: editing an already-synced fixture file doesn't reliably propagate via
+`bench migrate` alone.** Updated the Desktop Icon fixture to add `logo_url`, ran `migrate`, and the
+database record didn't change. Traced to `frappe/model/sync.py` and `import_file.py` rather than
+guessed at: fixture sync compares the file's own `modified` timestamp against the database
+record's, and skips re-importing if the database is already at or past that timestamp. The edit
+added a new field but left `modified` unchanged from the first import — the file was, by its own
+declared timestamp, indistinguishable from what was already applied. Fixed the live records
+directly on both sites, then fixed the actual fixture (bumped `modified`), then **proved** the fix
+rather than trusted it: blanked the field in the database again, ran `migrate`, confirmed it
+self-healed from the corrected fixture. Worth remembering for any future fixture edit in this app,
+not just this one: **bump `modified` by hand whenever hand-editing an already-synced fixture file,
+or the change silently won't apply to a site where the old version already ran.**
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,
