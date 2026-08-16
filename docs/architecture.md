@@ -150,6 +150,24 @@ hand-calculation exactly — including a full reconciliation trace for HR-EMP-00
 same 44,299 PAYE this app has now verified three separate times, from three different entry points,
 across two different sites.
 
+**Caught after the fact: NITA was modeled but never reported.** The component has existed since
+the generator was first built — employer-paid, flat 50/employee/month, posting to `NITA Payable`
+— and it's on Appendix A's own submission calendar ("NITA levy — 10th of following month"), same
+as NSSF/SHIF/Housing Levy. It should have been in the original batch of five reports and wasn't —
+a genuine miss, not a deferral (unlike HELB, bank reports, and the rest, which were named and
+explicitly deferred at the time `csf_ke`'s payroll slice was absorbed). Fixed: **Kenya NITA
+Contributions**, same shared `statutory_component_report` helper as NSSF/SHIF, verified against the
+real June 2026 two-employee data — both employees correctly show the flat 50 regardless of gross
+pay.
+
+**HELB raised and deliberately not built yet.** Real, common, and legally mandatory once HELB
+issues a deduction notice for a specific employee — but per-employee and HELB-specified in amount,
+not a formula derived from gross pay, making it structurally closer to the guide's own Welfare
+Contribution pattern (flat, per-employee, via Additional Salary, not in the default Salary
+Structure) than to NSSF. Needs a new Salary Component and an Employee reference-number field before
+a report makes sense — a modeling decision, not just a report — held for explicit go-ahead rather
+than built alongside NITA.
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,

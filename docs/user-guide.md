@@ -189,14 +189,16 @@ old assignment silently computing new-rate numbers on stale formulas.
 
 ## 7A. Running the statutory reports
 
-Five reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
-Contributions**, **Kenya Housing Levy Contributions**, **Kenya P10A Monthly Return**, and **Kenya
-P9A Tax Deduction Card**. `Ctrl+K`, type the name, or find them via `/app/query-report/<name>`.
+Six reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
+Contributions**, **Kenya Housing Levy Contributions**, **Kenya NITA Contributions**, **Kenya P10A
+Monthly Return**, and **Kenya P9A Tax Deduction Card**. `Ctrl+K`, type the name, or find them via
+`/app/query-report/<name>`.
 
-- **NSSF / SHIF / Housing Levy** — filter by Company and a From/To Date range. Housing Levy
+- **NSSF / SHIF / Housing Levy / NITA** — filter by Company and a From/To Date range. Housing Levy
   deliberately shows *both* employee and employer contributions summed, since that's what
   `Housing Levy Payable` actually accumulates and a report showing only the employee side wouldn't
-  reconcile against it.
+  reconcile against it. NITA is employer-only — flat 50 per employee per month, regardless of
+  gross pay — so its report is purely an employer-cost view, not a "what did we withhold" one.
 - **P10A** — filter by Company and any date within the return month (only the month/year is used).
   One row per employee for that month, shaped to match what iTax expects.
 - **P9A** — filter by Company, Fiscal Year, and **one specific Employee** — this is a
