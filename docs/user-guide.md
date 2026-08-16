@@ -213,7 +213,17 @@ P9A Tax Deduction Card**. `Ctrl+K`, type the name, or find them via `/app/query-
 
 **Both P9A and P10A read National ID and KRA PIN from the Employee record** (`royce_national_id`,
 `royce_kra_pin`) — blank on an employee until someone fills them in, same fields used by the NSSF
-and SHIF reports.
+and SHIF reports. **`download_certificate()` refuses to generate a P9A if the employee has no KRA
+PIN on file** — a certificate missing a legally required field isn't a compliant filing, so this
+is a hard block, not a warning. Fill in the PIN and try again.
+
+**A caution on running payroll twice for the same period:** if a `Payroll Entry` run is ever
+interrupted before its slips are submitted, the resulting Draft slips don't protect against a
+second `Payroll Entry` picking up the same employees again — HRMS's own duplicate check only
+excludes employees who already have a **Submitted** slip for that exact period, not a Draft one.
+Before creating a new `Payroll Entry` for a period you're not sure was completed, check the Salary
+Slip list for that date range first — clean up or submit any stray Drafts rather than starting
+fresh and risking duplicates.
 
 ---
 

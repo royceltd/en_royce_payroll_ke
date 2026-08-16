@@ -110,6 +110,46 @@ workspace polish, a Desktop Icon matching `royce_talk`/`royce_etims`, self-heali
 favour of the two compliance-critical reports, per explicit CTO-level prioritisation: a report KRA
 expects and the app can't produce isn't a discoverability problem, it's a compliance gap.
 
+## Session 3 — closing two remaining gaps in "compliant," not adding features
+
+Explicit CTO framing for this session: "working as expected and compliant," not new functionality.
+Two things stood out as unfinished against that bar, neither of them `royce_provision` or
+discoverability.
+
+**A P9A could previously be generated for an employee with no KRA PIN on file.** Fixed:
+`download_certificate()` now hard-blocks with a clear message if `royce_kra_pin` is blank, rather
+than silently issuing an incomplete certificate. Deliberately not made a mandatory field on
+Employee itself — that would block ordinary employee setup for a requirement that only actually
+matters at certificate time. Verified both directions, not just the code path: blanked a real
+employee's PIN, confirmed the block fires with the right message, restored it, confirmed the PDF
+generates normally again.
+
+**Everything verified before this session was against exactly one employee, one slip, one month.**
+That's proof the formulas are right, not proof the reports work at the scale a real payroll run
+actually has. Built a genuine two-employee test — different base salaries (150,000 and 80,000),
+run through an actual `Payroll Entry` end to end, all five reports checked against both employees
+independently.
+
+**This surfaced a real near-miss, caused by the test process itself, not the app — but worth
+recording in full because of what it revealed about a mechanism this app depends on.** An earlier,
+broken run of the test script (fixing API mistakes — wrong field name, wrong method name — across
+several attempts) left stale **Draft** Salary Slips behind. A later, corrected run then created a
+second `Payroll Entry` for the same period, and `Payroll Entry`'s own duplicate-prevention
+(`remove_payrolled_employees`) only excludes employees who already have a **Submitted** slip for
+that exact period — drafts don't count. Combined with a too-broad submission loop in the test
+script itself (submitting every draft matching the period, not just the ones the current entry
+created), this produced four submitted slips — two real, two duplicates — for two employees, before
+it was caught. Root-caused by reading `remove_payrolled_employees`'s actual query rather than
+guessing, confirmed the mechanism does correctly block against *submitted* duplicates (the real
+risk a client would hit), cleaned up fully, and reran correctly. Worth remembering: this exclusion
+is real and does work, but its boundary is "submitted," not "exists" — a Draft slip left over from
+an aborted run provides no protection on its own.
+
+Rerun cleanly, every number for both employees across all five reports matched an independent
+hand-calculation exactly — including a full reconciliation trace for HR-EMP-00001 that produced the
+same 44,299 PAYE this app has now verified three separate times, from three different entry points,
+across two different sites.
+
 **Tried and deliberately abandoned: injecting this app's reports into HRMS's own `Payroll`
 workspace.** Wanted, for discoverability — sitting next to Salary Register / Income Tax
 Deductions rather than only in a separate `royce_payroll_ke` workspace. Built it as an additive,

@@ -141,10 +141,24 @@ def _totals_row(data):
 def download_certificate(company, fiscal_year, employee):
 	"""The P9A as a printable certificate — this is a document handed to an
 	employee, not just a screen table, so it needs to actually be one."""
+	employee_name, kra_pin = frappe.db.get_value("Employee", employee, ["employee_name", "royce_kra_pin"])
+
+	# A P9A without a KRA PIN isn't a compliant filing, it's a formatted table
+	# — block the artifact here, at the point it actually leaves the system,
+	# rather than let it generate silently incomplete and be discovered wrong
+	# later. Deliberately not made a mandatory field on Employee itself: that
+	# would block ordinary employee setup for a requirement that only bites at
+	# certificate time.
+	if not kra_pin:
+		frappe.throw(
+			_(
+				"{0} has no KRA PIN on file (Employee &rarr; KRA PIN). A P9A cannot be issued without one —"
+				" add it and try again."
+			).format(employee_name or employee)
+		)
+
 	columns, data = execute(frappe._dict(company=company, fiscal_year=fiscal_year, employee=employee))
 	data = [*data, _totals_row(data)]
-
-	employee_name, kra_pin = frappe.db.get_value("Employee", employee, ["employee_name", "royce_kra_pin"])
 
 	html = frappe.render_template(
 		"royce_payroll_ke/royce_payroll_ke/report/kenya_p9a_tax_deduction_card/kenya_p9a_tax_deduction_card.html",
