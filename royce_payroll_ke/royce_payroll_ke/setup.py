@@ -8,15 +8,18 @@ Salary Components (band-based PAYE, per the guide's approach), the Income Tax Sl
 placeholder, the Payroll Period, and the Salary Structure with row order enforced here
 rather than by whoever happens to be dragging rows in the UI that day.
 
-Two entry points:
+Three entry points:
+  seed_default_rates() - one-time (or once-per-Finance-Act-change) ENVIRONMENT bootstrap,
+                          not a per-client step. Creates the single shared Payroll Rates
+                          record every client's payroll draws from, if none exists yet.
   provision(company)  - full company setup, run once per new client.
   regenerate()         - re-templates the 22 components' formulas off the currently
                           effective Payroll Rates. Run after a Finance Act rate change.
                           Does not touch accounts or the structure — those don't depend
                           on rates.
 
-Both are safe to run more than once: every step checks for what already exists before
-creating anything.
+All three are safe to run more than once: every step checks for what already exists
+before creating anything.
 """
 
 import frappe
@@ -620,6 +623,61 @@ def _fill_structure_row(row, component_name):
 # ---------------------------------------------------------------------------
 # Entry points
 # ---------------------------------------------------------------------------
+
+
+@frappe.whitelist(methods=["POST"])
+def seed_default_rates():
+	"""Create and submit the current Kenya statutory rates, if no effective
+	Payroll Rates record exists yet.
+
+	One-time (or once-per-Finance-Act-change) ENVIRONMENT bootstrap — not a
+	per-client onboarding step. PayrollRates.get_effective() has no company
+	filter: every client's payroll draws from whichever single record is
+	submitted and effective as of today, so this only ever needs running
+	once per bench, not once per client.
+
+	The numbers below are a known-good snapshot (Feb 2026 KRA rates, per
+	docs/user-guide.md section 2) — not a live source of truth that should
+	silently drift. A real rate change means creating a new Payroll Rates
+	record by hand with the new effective_from date, same as any other
+	Finance Act update; it does not mean editing this function.
+
+	Restricted to System Manager: this creates and submits a submitted
+	statutory record that every client's payroll math depends on — not
+	something to expose more broadly than onboard_client_cli() itself is."""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw(_("Not permitted — seed_default_rates is restricted to System Managers."), frappe.PermissionError)
+
+	existing = PayrollRates.get_effective()
+	if existing:
+		return {"status": "already seeded", "rates": existing}
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Payroll Rates",
+			"effective_from": "2026-01-01",
+			"paye_bands": [
+				{"band_number": 1, "lower_bound": 0, "upper_bound": 24000, "rate": 10},
+				{"band_number": 2, "lower_bound": 24000, "upper_bound": 32333, "rate": 25},
+				{"band_number": 3, "lower_bound": 32333, "upper_bound": 500000, "rate": 30},
+				{"band_number": 4, "lower_bound": 500000, "upper_bound": 800000, "rate": 32.5},
+				{"band_number": 5, "lower_bound": 800000, "upper_bound": None, "rate": 35},
+			],
+			"nssf_tier_i_limit": 9000,
+			"nssf_tier_ii_limit": 108000,
+			"nssf_employee_rate": 6,
+			"nssf_employer_rate": 6,
+			"shif_rate": 2.75,
+			"shif_minimum": 300,
+			"ahl_employee_rate": 1.5,
+			"ahl_employer_rate": 1.5,
+			"nita_amount": 50,
+			"personal_relief": 2400,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+	doc.submit()
+	return {"status": "seeded", "rates": doc.name}
 
 
 def _get_rates_doc(rates):

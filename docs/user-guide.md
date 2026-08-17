@@ -39,6 +39,18 @@ statutory/expense accounts under them.
 This replaces Appendix A being retyped into 15 components by hand. One record holds every number
 KRA publishes; the generator does the retyping.
 
+**This is a one-time, per-environment step, not something to redo per client.**
+`PayrollRates.get_effective()` has no company filter — every client on this bench draws from the
+same current record. First time setting up a bench? Run this instead of the manual steps below:
+
+```
+bench --site [any-site-on-this-bench] execute royce_payroll_ke.royce_payroll_ke.setup.seed_default_rates
+```
+
+It creates and submits exactly the record documented below (the current known values), and safely
+no-ops if an effective record already exists. Use the manual UI steps below only when the numbers
+actually change (a real Finance Act update) or you want different values than the shipped default.
+
 `Ctrl+K → Payroll Rates → New`
 
 | Field | Example value (Feb 2026 rates) |
