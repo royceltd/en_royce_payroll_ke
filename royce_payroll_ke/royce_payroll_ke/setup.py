@@ -9,9 +9,12 @@ placeholder, the Payroll Period, and the Salary Structure with row order enforce
 rather than by whoever happens to be dragging rows in the UI that day.
 
 Three entry points:
-  seed_default_rates() - one-time (or once-per-Finance-Act-change) ENVIRONMENT bootstrap,
-                          not a per-client step. Creates the single shared Payroll Rates
-                          record every client's payroll draws from, if none exists yet.
+  seed_default_rates() - per-SITE bootstrap (each client's site is its own database, so
+                          this genuinely runs once per site, not once for the whole
+                          business). Called automatically by royce_provision's
+                          onboard_client() before provision(), so it's not something
+                          onboarding staff need to remember separately. Idempotent either
+                          way — no-ops if this site already has an effective record.
   provision(company)  - full company setup, run once per new client.
   regenerate()         - re-templates the 22 components' formulas off the currently
                           effective Payroll Rates. Run after a Finance Act rate change.
@@ -630,11 +633,14 @@ def seed_default_rates():
 	"""Create and submit the current Kenya statutory rates, if no effective
 	Payroll Rates record exists yet.
 
-	One-time (or once-per-Finance-Act-change) ENVIRONMENT bootstrap — not a
-	per-client onboarding step. PayrollRates.get_effective() has no company
-	filter: every client's payroll draws from whichever single record is
-	submitted and effective as of today, so this only ever needs running
-	once per bench, not once per client.
+	Per-SITE bootstrap, not per-company — PayrollRates.get_effective() has no
+	company filter, so every company ON THIS SITE shares one record. That is
+	NOT the same as "once for the whole business": each client here gets
+	their own site (own database, per Model A), so a fresh client's site has
+	no rates record regardless of what other clients' sites have. Called
+	automatically by royce_provision's onboard_client() before provision(),
+	so onboarding stays a single call rather than depending on a separate
+	step per site that's easy to forget.
 
 	The numbers below are a known-good snapshot (Feb 2026 KRA rates, per
 	docs/user-guide.md section 2) — not a live source of truth that should

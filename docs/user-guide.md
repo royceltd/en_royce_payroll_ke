@@ -39,17 +39,21 @@ statutory/expense accounts under them.
 This replaces Appendix A being retyped into 15 components by hand. One record holds every number
 KRA publishes; the generator does the retyping.
 
-**This is a one-time, per-environment step, not something to redo per client.**
-`PayrollRates.get_effective()` has no company filter — every client on this bench draws from the
-same current record. First time setting up a bench? Run this instead of the manual steps below:
+**This is per-SITE, not per-environment or per-bench** — `PayrollRates.get_effective()` has no
+company filter, which reads as "one record for everything," but a site is its own database, and
+that record doesn't cross sites. If you're onboarding through `royce_provision`, you don't need to
+do anything here: `onboard_client()`'s payroll branch calls `seed_default_rates()` itself, on this
+site, every time, safely (no-ops if it's already there). Run it by hand only if you're working
+directly on this app without going through onboarding, or want different values than the shipped
+default from the start:
 
 ```
-bench --site [any-site-on-this-bench] execute royce_payroll_ke.royce_payroll_ke.setup.seed_default_rates
+bench --site [this-site] execute royce_payroll_ke.royce_payroll_ke.setup.seed_default_rates
 ```
 
-It creates and submits exactly the record documented below (the current known values), and safely
-no-ops if an effective record already exists. Use the manual UI steps below only when the numbers
-actually change (a real Finance Act update) or you want different values than the shipped default.
+It creates and submits exactly the record documented below (the current known values). Use the
+manual UI steps below only when the numbers actually change (a real Finance Act update) or you want
+different values than the shipped default.
 
 `Ctrl+K → Payroll Rates → New`
 
