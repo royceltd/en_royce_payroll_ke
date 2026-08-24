@@ -96,7 +96,7 @@ fixtures = [
 # ------------
 
 # before_install = "royce_payroll_ke.install.before_install"
-# after_install = "royce_payroll_ke.install.after_install"
+after_install = "royce_payroll_ke.royce_payroll_ke.install.after_install"
 
 # Uninstallation
 # ------------

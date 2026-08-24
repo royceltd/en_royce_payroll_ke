@@ -693,6 +693,30 @@ def _get_rates_doc(rates):
 	return frappe.get_doc("Payroll Rates", rates_name)
 
 
+def _require_payroll_write_permission():
+	"""Gate for provision() and regenerate(): both mutate Salary Components,
+	the Chart of Accounts, and Salary Structures for every company on the
+	site — the same trust level as editing Payroll Rates itself, not just
+	"logged in". Ties to Payroll Rates' own permission model (System
+	Manager / HR Manager have write; HR User is read-only) rather than
+	hardcoding role names a second time. Added alongside the Desk buttons
+	that call these — without it, the underlying API was already callable
+	by any authenticated user (frappe.whitelist() alone doesn't restrict by
+	role, and every write inside these functions uses
+	ignore_permissions=True); a visible button would only have made that
+	gap easier to hit by accident, not created it."""
+	if not frappe.has_permission("Payroll Rates", "write"):
+		frappe.throw(_("Not permitted — this requires write access to Payroll Rates."), frappe.PermissionError)
+
+
+def _require_payroll_read_permission():
+	"""Gate for verify(): read-only, so held to a lower bar than
+	provision()/regenerate() — anyone who can at least see Payroll Rates
+	should be able to run a self-check against it."""
+	if not frappe.has_permission("Payroll Rates", "read"):
+		frappe.throw(_("Not permitted — this requires read access to Payroll Rates."), frappe.PermissionError)
+
+
 def _provisioned_companies():
 	"""Companies that already have a Kenya payroll structure. Detected via the
 	'Taxable Income' component rather than a naming convention — it's a marker
@@ -711,6 +735,7 @@ def _provisioned_companies():
 def provision(company, rates=None):
 	"""Full setup for a company: accounts, the 22 components, the Income Tax Slab
 	placeholder, the Payroll Period, and the Salary Structure. Safe to re-run."""
+	_require_payroll_write_permission()
 	rates_doc = _get_rates_doc(rates)
 
 	ensure_accounts(company)
@@ -742,6 +767,7 @@ def regenerate(rates=None):
 	per guide section 8. That's a deliberate choice: it would be worse to silently
 	migrate a live assignment onto new formulas mid-flight than to leave the old
 	assignment as it was and require an explicit, dated, reviewable change."""
+	_require_payroll_write_permission()
 	rates_doc = _get_rates_doc(rates)
 	ensure_components(rates_doc)
 
@@ -755,7 +781,7 @@ def regenerate(rates=None):
 
 
 @frappe.whitelist()
-def verify(company):
+def verify(company, rates=None):
 	"""Read-only structural sanity check that provisioning actually produced
 	what it should. Deliberately does not create a synthetic employee/payslip
 	to test the math end to end — this needs to be safe to run against a real
@@ -765,13 +791,18 @@ def verify(company):
 	right Account Type, does the current Salary Structure have the right rows
 	in the right order. Raises with every problem found, not just the first —
 	whoever's onboarding a client wants the whole list at once, not one
-	failure per retry."""
+	failure per retry.
+
+	`rates` defaults to whatever's currently effective (as before), but can
+	be passed explicitly — matching provision()'s own pattern — so a check
+	run from a specific, possibly-superseded Payroll Rates record verifies
+	against *that* record rather than silently substituting whatever else
+	happens to be effective today."""
+	_require_payroll_read_permission()
 	problems = []
 
-	rates_name = PayrollRates.get_effective()
-	if not rates_name:
-		frappe.throw(_("No effective, submitted Payroll Rates record found."))
-	rates_doc = frappe.get_doc("Payroll Rates", rates_name)
+	rates_doc = _get_rates_doc(rates)
+	rates_name = rates_doc.name
 
 	expected_components = [spec["salary_component"] for spec in component_specs(rates_doc)]
 	for name in expected_components:

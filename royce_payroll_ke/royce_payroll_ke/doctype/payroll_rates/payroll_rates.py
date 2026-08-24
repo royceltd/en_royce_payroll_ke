@@ -6,6 +6,14 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, getdate
 
+# KRA's current PAYE band structure has 5 bands. This is a current-law
+# assumption, not a structural limit of the generator itself —
+# setup.component_specs() already loops over however many band rows a
+# Payroll Rates record has, so it doesn't need to change if this does. Only
+# this validation (and any other place still hardcoding "5" or "1..5")
+# would need to move if KRA ever changes the band count.
+EXPECTED_PAYE_BAND_COUNT = 5
+
 
 class PayrollRates(Document):
 	"""Source of truth for Kenyan statutory payroll rates.
@@ -24,15 +32,18 @@ class PayrollRates(Document):
 	def validate_paye_bands(self):
 		bands = sorted(self.paye_bands, key=lambda row: row.band_number)
 
-		if len(bands) != 5:
+		if len(bands) != EXPECTED_PAYE_BAND_COUNT:
 			frappe.throw(
-				_("PAYE Bands must have exactly 5 rows (KRA's current band structure has 5). Found {0}.").format(
-					len(bands)
+				_("PAYE Bands must have exactly {0} rows (KRA's current band structure has {0}). Found {1}.").format(
+					EXPECTED_PAYE_BAND_COUNT, len(bands)
 				)
 			)
 
-		if [row.band_number for row in bands] != [1, 2, 3, 4, 5]:
-			frappe.throw(_("PAYE Bands must be numbered 1 through 5, one row each."))
+		expected_numbers = list(range(1, EXPECTED_PAYE_BAND_COUNT + 1))
+		if [row.band_number for row in bands] != expected_numbers:
+			frappe.throw(
+				_("PAYE Bands must be numbered 1 through {0}, one row each.").format(EXPECTED_PAYE_BAND_COUNT)
+			)
 
 		if flt(bands[0].lower_bound) != 0:
 			frappe.throw(_("Band 1's Lower Bound must be 0."))
@@ -40,9 +51,9 @@ class PayrollRates(Document):
 		for previous, current in zip(bands, bands[1:]):
 			if not previous.upper_bound:
 				frappe.throw(
-					_("Band {0} is missing an Upper Bound — only Band 5 (the last band) may be open-ended.").format(
-						previous.band_number
-					)
+					_(
+						"Band {0} is missing an Upper Bound — only Band {1} (the last band) may be open-ended."
+					).format(previous.band_number, EXPECTED_PAYE_BAND_COUNT)
 				)
 			if flt(current.lower_bound) != flt(previous.upper_bound):
 				frappe.throw(
@@ -53,7 +64,11 @@ class PayrollRates(Document):
 				)
 
 		if bands[-1].upper_bound:
-			frappe.throw(_("Band 5 (the last band) must be open-ended — leave its Upper Bound blank."))
+			frappe.throw(
+				_("Band {0} (the last band) must be open-ended — leave its Upper Bound blank.").format(
+					EXPECTED_PAYE_BAND_COUNT
+				)
+			)
 
 		for row in bands:
 			if not (0 <= flt(row.rate) <= 100):

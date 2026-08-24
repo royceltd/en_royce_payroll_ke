@@ -6,7 +6,7 @@ from frappe import _
 from frappe.utils import flt, get_first_day, get_last_day, getdate
 
 from royce_payroll_ke.royce_payroll_ke.doctype.payroll_rates.payroll_rates import PayrollRates
-from royce_payroll_ke.royce_payroll_ke.report_utils import card_type_sums
+from royce_payroll_ke.royce_payroll_ke.report_utils import card_type_sums_by_employee
 
 # Guide section 10.2's P10A card-type mapping, grouped the way the actual iTax
 # return groups them. Generic against whatever's tagged, not a hardcoded
@@ -78,23 +78,26 @@ def execute(filters=None):
 	rates_name = PayrollRates.get_effective(month_end)
 	personal_relief = flt(frappe.db.get_value("Payroll Rates", rates_name, "personal_relief")) if rates_name else 0
 
+	# One query for every matching slip across the whole roster, then one grouped
+	# query for the card-type sums, instead of two queries per employee — the
+	# same batching as statutory_component_report(), for the same reason: this
+	# report runs over a company's whole roster for a month, not one employee.
+	slips = frappe.get_all(
+		"Salary Slip",
+		filters={
+			"employee": ["in", [emp.name for emp in employees]],
+			"company": filters.company,
+			"docstatus": 1,
+			"start_date": [">=", month_start],
+			"end_date": ["<=", month_end],
+		},
+		fields=["name", "employee"],
+	)
+	sums_by_employee = card_type_sums_by_employee(slips, "royce_p10a_tax_deduction_card_type")
+
 	data = []
 	for emp in employees:
-		slips = frappe.get_all(
-			"Salary Slip",
-			filters={
-				"employee": emp.name,
-				"company": filters.company,
-				"docstatus": 1,
-				"start_date": [">=", month_start],
-				"end_date": ["<=", month_end],
-			},
-			pluck="name",
-		)
-		if not slips:
-			continue
-
-		sums = card_type_sums(slips, "royce_p10a_tax_deduction_card_type")
+		sums = sums_by_employee.get(emp.name)
 		if not sums:
 			continue
 
