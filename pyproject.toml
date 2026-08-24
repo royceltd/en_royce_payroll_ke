@@ -15,6 +15,15 @@ dependencies = [
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
+# Required by Frappe Cloud's "Add app from GitHub" flow (and newer bench
+# tooling generally) to determine which Frappe version(s) this app is
+# compatible with — without this table, Frappe Cloud can't resolve it and
+# refuses to add the app at all. Mirrors hrms's own pyproject.toml, since
+# royce_payroll_ke requires hrms (hooks.py's required_apps).
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0,<17.0.0"
+hrms = ">=16.0.0,<17.0.0"
+
 # These dependencies are only installed when developer mode is enabled
 [tool.bench.dev-dependencies]
 # package_name = "~=1.1.0"
