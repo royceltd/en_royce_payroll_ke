@@ -25,9 +25,11 @@ All three are safe to run more than once: every step checks for what already exi
 before creating anything.
 """
 
+from datetime import date, timedelta
+
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 from royce_payroll_ke.royce_payroll_ke.doctype.payroll_rates.payroll_rates import PayrollRates
 
@@ -624,6 +626,153 @@ def _fill_structure_row(row, component_name):
 
 
 # ---------------------------------------------------------------------------
+# Kenya Holiday List (weekends + confidently-known public holidays)
+# ---------------------------------------------------------------------------
+
+# Fixed-date Kenya public holidays -- stable for decades, no moving parts.
+# Deliberately excludes two real categories rather than guess at them (a
+# 2026-09-13 decision, see royce_ip's CLAUDE.md): seed only what we have full
+# confidence in, since a wrong "public holiday" a customer trusts blindly is
+# worse than an honest gap they fill in themselves.
+#   - Huduma Day (Oct 10, formerly Moi Day) -- abolished in 2010, reinstated
+#     by a 2017 court order, renamed in 2019. Its legal status has genuinely
+#     changed more than once; not something to hardcode confidently.
+#   - Eid al-Fitr / Eid al-Adha -- lunar-calendar dates Kenya's government
+#     only confirms off an actual moon sighting, typically a day or two
+#     beforehand. Any date computed this far in advance is an estimate, not
+#     a fact. Left for the customer to add themselves, via the same "Add
+#     Local Holidays" tool, once officially gazetted.
+FIXED_KENYA_HOLIDAYS = [
+	(1, 1, "New Year's Day"),
+	(5, 1, "Labour Day"),
+	(6, 1, "Madaraka Day"),
+	(10, 20, "Mashujaa Day"),
+	(12, 12, "Jamhuri Day"),
+	(12, 25, "Christmas Day"),
+	(12, 26, "Boxing Day"),
+]
+
+
+def _easter_sunday(year: int) -> date:
+	"""Easter Sunday for `year`, via the standard Anonymous Gregorian
+	algorithm (Meeus/Jones/Butcher). The one moveable date category here
+	that's genuinely computable exactly, unlike the fixed list above (no
+	moving parts at all) or Eid (fundamentally unknowable this far ahead --
+	see FIXED_KENYA_HOLIDAYS' own comment)."""
+	a = year % 19
+	b = year // 100
+	c = year % 100
+	d = b // 4
+	e = b % 4
+	f = (b + 8) // 25
+	g = (b - f + 1) // 3
+	h = (19 * a + b - d - g + 15) % 30
+	i = c // 4
+	k = c % 4
+	l = (32 + 2 * e + 2 * i - h - k) % 7
+	m = (a + 11 * h + 22 * l) // 451
+	month = (h + l - 7 * m + 114) // 31
+	day = ((h + l - 7 * m + 114) % 31) + 1
+	return date(year, month, day)
+
+
+def _kenya_holidays_for_year(year: int) -> dict:
+	"""{date: {"description": ..., "weekly_off": 0/1}} for one calendar year --
+	the fixed-date public holidays, the two Easter-relative ones, and every
+	Saturday/Sunday not already claimed by one of those. Named holidays take
+	priority over the generic "Weekly Off" label when a public holiday lands
+	on a weekend (e.g. Christmas on a Saturday), via dict.setdefault ordering
+	below -- so the seeded list stays informative instead of silently
+	relabelling a named holiday as generic.
+	"""
+	holidays: dict = {}
+
+	for month, day, description in FIXED_KENYA_HOLIDAYS:
+		holidays[date(year, month, day)] = {"description": description, "weekly_off": 0}
+
+	easter = _easter_sunday(year)
+	for day_date, description in (
+		(easter - timedelta(days=2), "Good Friday"),
+		(easter + timedelta(days=1), "Easter Monday"),
+	):
+		holidays.setdefault(day_date, {"description": description, "weekly_off": 0})
+
+	day = date(year, 1, 1)
+	one_day = timedelta(days=1)
+	while day.year == year:
+		if day.weekday() in (5, 6):  # Saturday, Sunday
+			holidays.setdefault(day, {"description": "Weekly Off", "weekly_off": 1})
+		day += one_day
+
+	return holidays
+
+
+def ensure_holiday_list(company: str, year: int) -> str:
+	"""Create `year`'s Holiday List for `company` if it doesn't already exist
+	-- weekends and Kenya's confidently-known public holidays, per
+	_kenya_holidays_for_year(). Fully editable afterward, same as any other
+	ERPNext master: a customer who later works half-day Saturdays ticks
+	"Is Half Day" on those rows themselves (a real field on Holiday, confirmed
+	against the actual Holiday List UI, not assumed), and Eid/any other local
+	holiday gets added the same way once it's actually known. One list per
+	(company, year) -- next year gets its own, same pattern as
+	ensure_payroll_period().
+	"""
+	name = f"{company} Holidays {year}"
+	if frappe.db.exists("Holiday List", name):
+		return name
+
+	doc = frappe.new_doc("Holiday List")
+	doc.holiday_list_name = name
+	doc.from_date = f"{year}-01-01"
+	doc.to_date = f"{year}-12-31"
+	for day_date, info in sorted(_kenya_holidays_for_year(year).items()):
+		doc.append(
+			"holidays",
+			{
+				"holiday_date": day_date,
+				"description": info["description"],
+				"weekly_off": info["weekly_off"],
+				"is_half_day": 0,
+			},
+		)
+	doc.insert(ignore_permissions=True)
+	return doc.name
+
+
+def ensure_holiday_list_assignment(company: str, holiday_list: str, from_date) -> str:
+	"""Submit a Holiday List Assignment linking `company` to `holiday_list` --
+	the real v16 wiring payroll/attendance actually resolve against (verified
+	against hrms's own v16_0 migration patch, create_holiday_list_assignments.py,
+	not assumed -- the older Company.default_holiday_list field is only what
+	that patch migrates FROM, not what a fresh v16 site should be wired
+	through). No-ops if an assignment for this company and from_date is
+	already submitted, matching the doctype's own duplicate check
+	(HolidayListAssignment.validate_existing_assignment) -- checked up front
+	here instead of caught as a thrown DuplicateAssignment. Doesn't set
+	naming_series explicitly -- Frappe fills it in from the doctype's sole
+	series option on its own, same as royce_payroll_ke's own
+	tests/utils.py's make_test_payslip already relies on for the Employee
+	variant of this same doctype.
+	"""
+	existing = frappe.db.exists(
+		"Holiday List Assignment",
+		{"assigned_to": company, "from_date": from_date, "docstatus": 1},
+	)
+	if existing:
+		return existing
+
+	doc = frappe.new_doc("Holiday List Assignment")
+	doc.applicable_for = "Company"
+	doc.assigned_to = company
+	doc.holiday_list = holiday_list
+	doc.from_date = from_date
+	doc.insert(ignore_permissions=True)
+	doc.submit()
+	return doc.name
+
+
+# ---------------------------------------------------------------------------
 # Entry points
 # ---------------------------------------------------------------------------
 
@@ -745,11 +894,26 @@ def provision(company, rates=None):
 	period = ensure_payroll_period(company, rates_doc)
 	structure = ensure_salary_structure(company, rates_doc)
 
+	# Attendance/payroll need a Holiday List or every day is treated as a
+	# working day -- a wrong-payslip bug, not a crash, so it fails silently
+	# rather than loudly (see setup's Kenya Holiday List comment above for
+	# why Eid isn't seeded). Both this year and next, matching Fiscal Year's
+	# own "current + next" seeding in kenyan_accountant -- a business signing
+	# up late in the year shouldn't fall off the edge of its holiday
+	# coverage the moment the calendar turns over.
+	current_year = getdate().year
+	holiday_lists = {}
+	for year in (current_year, current_year + 1):
+		holiday_list = ensure_holiday_list(company, year)
+		ensure_holiday_list_assignment(company, holiday_list, f"{year}-01-01")
+		holiday_lists[year] = holiday_list
+
 	return {
 		"rates": rates_doc.name,
 		"income_tax_slab": slab,
 		"payroll_period": period,
 		"salary_structure": structure,
+		"holiday_lists": holiday_lists,
 	}
 
 

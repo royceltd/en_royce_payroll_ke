@@ -10,11 +10,23 @@ piece of the whole app... run as a real test after every provision and
 every regenerate." Before this file existed, that meant a human re-running
 the guide's numbers by hand; this is that check, automated."""
 
+from datetime import date, timedelta
+
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
-from frappe.utils import rounded, today
+from frappe.utils import getdate, rounded, today
 
-from royce_payroll_ke.royce_payroll_ke.setup import component_specs, provision, regenerate, verify
+from royce_payroll_ke.royce_payroll_ke.setup import (
+	FIXED_KENYA_HOLIDAYS,
+	component_specs,
+	_easter_sunday,
+	_kenya_holidays_for_year,
+	ensure_holiday_list,
+	ensure_holiday_list_assignment,
+	provision,
+	regenerate,
+	verify,
+)
 from royce_payroll_ke.royce_payroll_ke.tests.utils import (
 	DEFAULT_RATES,
 	get_test_company,
@@ -292,3 +304,94 @@ class TestPermissions(IntegrationTestCase):
 			self.assertEqual(result["status"], "PASS")
 		finally:
 			frappe.set_user("Administrator")
+
+class TestKenyaHolidaySeeding(IntegrationTestCase):
+	"""Tests for Holiday List / Holiday List Assignment seeding (2026-09-13):
+	weekends + Kenya's confidently-known public holidays, wired into
+	provision() so every Growth+ tenant gets one without a human doing it by
+	hand. See FIXED_KENYA_HOLIDAYS' own comment for what's deliberately NOT
+	seeded (Huduma Day, Eid al-Fitr/al-Adha) and why."""
+
+	def test_easter_sunday_matches_known_real_dates(self):
+		"""Locks the Meeus/Jones/Butcher algorithm in against two
+		independently known real Easter Sundays, not just internal
+		self-consistency."""
+		self.assertEqual(_easter_sunday(2024), date(2024, 3, 31))
+		self.assertEqual(_easter_sunday(2025), date(2025, 4, 20))
+
+	def test_kenya_holidays_for_year_includes_every_fixed_date(self):
+		holidays = _kenya_holidays_for_year(2027)
+		self.assertEqual(
+			holidays[date(2027, 1, 1)], {"description": "New Year's Day", "weekly_off": 0}
+		)
+		self.assertEqual(
+			holidays[date(2027, 12, 25)], {"description": "Christmas Day", "weekly_off": 0}
+		)
+
+	def test_kenya_holidays_for_year_includes_computed_easter_dates(self):
+		easter = _easter_sunday(2027)
+		holidays = _kenya_holidays_for_year(2027)
+		self.assertEqual(holidays[easter - timedelta(days=2)]["description"], "Good Friday")
+		self.assertEqual(holidays[easter + timedelta(days=1)]["description"], "Easter Monday")
+
+	def test_named_holiday_beats_weekly_off_label_when_they_coincide(self):
+		"""A fixed-date public holiday that happens to land on a weekend
+		keeps its own name and weekly_off=0, rather than being silently
+		relabelled "Weekly Off" -- searches for a real coincidence (via
+		Python's own date.weekday(), an oracle independent of the function
+		under test) rather than assuming one falls inside a single
+		hardcoded year."""
+		for year in range(2024, 2040):
+			holidays = _kenya_holidays_for_year(year)
+			for month, day, description in FIXED_KENYA_HOLIDAYS:
+				d = date(year, month, day)
+				if d.weekday() in (5, 6):
+					self.assertEqual(holidays[d], {"description": description, "weekly_off": 0})
+					return
+		self.fail("no fixed Kenya holiday landed on a weekend in 2024-2039 -- widen the search range")
+
+	def test_ensure_holiday_list_creates_and_is_idempotent(self):
+		company = get_test_company()
+		year = 2031  # far from any other test's own dates -- avoids collisions
+
+		first = ensure_holiday_list(company, year)
+		second = ensure_holiday_list(company, year)
+		self.assertEqual(first, second)
+		self.assertEqual(frappe.db.count("Holiday List", {"holiday_list_name": first}), 1)
+
+		doc = frappe.get_doc("Holiday List", first)
+		self.assertEqual(str(doc.from_date), f"{year}-01-01")
+		self.assertEqual(str(doc.to_date), f"{year}-12-31")
+		descriptions = {h.description for h in doc.holidays}
+		self.assertIn("New Year's Day", descriptions)
+		self.assertIn("Good Friday", descriptions)
+		self.assertIn("Weekly Off", descriptions)
+
+	def test_ensure_holiday_list_assignment_submits_and_is_idempotent(self):
+		company = get_test_company()
+		year = 2032
+		holiday_list = ensure_holiday_list(company, year)
+
+		first = ensure_holiday_list_assignment(company, holiday_list, f"{year}-01-01")
+		second = ensure_holiday_list_assignment(company, holiday_list, f"{year}-01-01")
+		self.assertEqual(first, second)
+		self.assertEqual(
+			frappe.db.count(
+				"Holiday List Assignment",
+				{"assigned_to": company, "from_date": f"{year}-01-01", "docstatus": 1},
+			),
+			1,
+		)
+		self.assertEqual(frappe.db.get_value("Holiday List Assignment", first, "docstatus"), 1)
+
+	def test_provision_seeds_holiday_lists_for_this_and_next_year(self):
+		company = get_test_company()
+		rates = make_test_payroll_rates("1985-05-05")
+
+		result = provision(company, rates=rates.name)
+
+		current_year = getdate().year
+		self.assertIn(current_year, result["holiday_lists"])
+		self.assertIn(current_year + 1, result["holiday_lists"])
+		for holiday_list in result["holiday_lists"].values():
+			self.assertTrue(frappe.db.exists("Holiday List", holiday_list))
