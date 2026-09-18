@@ -18,6 +18,12 @@ fixtures = [
 			["module", "=", "Royce Payroll Ke"],
 		],
 	},
+	# Ships our own branded Salary Slip layout as the default for every new tenant --
+	# installed automatically via bench install-app, no per-tenant manual setup step.
+	{
+		"doctype": "Print Format",
+		"filters": [["name", "=", "Royce Kenya Payslip"]],
+	},
 ]
 
 # Each item in the list will be shown as an app in the apps page
