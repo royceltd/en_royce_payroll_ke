@@ -24,6 +24,12 @@ fixtures = [
 		"doctype": "Print Format",
 		"filters": [["name", "=", "Royce Kenya Payslip"]],
 	},
+	# Makes it the DEFAULT a customer sees without picking it from a dropdown first --
+	# see kenyan_accountant's hooks.py for why a Print Format record alone isn't enough.
+	{
+		"doctype": "Property Setter",
+		"filters": [["name", "=", "Salary Slip-main-default_print_format"]],
+	},
 ]
 
 # Each item in the list will be shown as an app in the apps page
