@@ -1,5 +1,5 @@
 app_name = "royce_payroll_ke"
-app_title = "Royce Payroll Ke"
+app_title = "Kenya Payroll"
 app_publisher = "Royce Technologies LTD"
 app_description = "Kenya PAYE, NSSF, SHIF and Housing Levy payroll compliance engine for ERPNext"
 app_email = "developer@roycetechnologies.co.ke"
@@ -15,14 +15,14 @@ fixtures = [
 		"doctype": "Custom Field",
 		"filters": [
 			["is_system_generated", "=", 0],
-			["module", "=", "Royce Payroll Ke"],
+			["module", "=", "Kenya Payroll"],
 		],
 	},
 	# Ships our own branded Salary Slip layout as the default for every new tenant --
 	# installed automatically via bench install-app, no per-tenant manual setup step.
 	{
 		"doctype": "Print Format",
-		"filters": [["name", "=", "Royce Kenya Payslip"]],
+		"filters": [["name", "=", "Kenya Payslip"]],
 	},
 	# Makes it the DEFAULT a customer sees without picking it from a dropdown first --
 	# see kenyan_accountant's hooks.py for why a Print Format record alone isn't enough.
@@ -37,7 +37,7 @@ fixtures = [
 # 	{
 # 		"name": "royce_payroll_ke",
 # 		"logo": "/assets/royce_payroll_ke/logo.png",
-# 		"title": "Royce Payroll Ke",
+# 		"title": "Kenya Payroll",
 # 		"route": "/royce_payroll_ke",
 # 		"has_permission": "royce_payroll_ke.api.permission.has_app_permission"
 # 	}
@@ -108,7 +108,7 @@ fixtures = [
 # ------------
 
 # before_install = "royce_payroll_ke.install.before_install"
-after_install = "royce_payroll_ke.royce_payroll_ke.install.after_install"
+after_install = "royce_payroll_ke.kenya_payroll.install.after_install"
 
 # Uninstallation
 # ------------

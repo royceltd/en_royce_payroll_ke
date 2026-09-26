@@ -1,4 +1,4 @@
-### Royce Payroll Ke
+### Kenya Payroll (`royce_payroll_ke`)
 
 Kenya PAYE, NSSF, SHIF and Housing Levy payroll compliance engine for ERPNext
 

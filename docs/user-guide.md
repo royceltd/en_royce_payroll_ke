@@ -1,4 +1,4 @@
-# Royce Payroll KE — User Guide
+# Kenya Payroll — User Guide
 
 This guide is for whoever is actually running `royce_payroll_ke` against a client — setting up a
 new company's payroll, or updating rates after a Finance Act change. For *why* it's built this
@@ -34,12 +34,12 @@ statutory/expense accounts under them.
 
 ---
 
-## 2. Step 1 — Create a Payroll Rates record
+## 2. Step 1 — Create a Kenya Payroll Rates record
 
 This replaces Appendix A being retyped into 15 components by hand. One record holds every number
 KRA publishes; the generator does the retyping.
 
-**This is per-SITE, not per-environment or per-bench** — `PayrollRates.get_effective()` has no
+**This is per-SITE, not per-environment or per-bench** — `KenyaPayrollRates.get_effective()` has no
 company filter, which reads as "one record for everything," but a site is its own database, and
 that record doesn't cross sites. If you're onboarding through `royce_provision`, you don't need to
 do anything here: `onboard_client()`'s payroll branch calls `seed_default_rates()` itself, on this
@@ -48,14 +48,14 @@ directly on this app without going through onboarding, or want different values 
 default from the start:
 
 ```
-bench --site [this-site] execute royce_payroll_ke.royce_payroll_ke.setup.seed_default_rates
+bench --site [this-site] execute royce_payroll_ke.kenya_payroll.setup.seed_default_rates
 ```
 
 It creates and submits exactly the record documented below (the current known values). Use the
 manual UI steps below only when the numbers actually change (a real Finance Act update) or you want
 different values than the shipped default.
 
-`Ctrl+K → Payroll Rates → New`
+`Ctrl+K → Kenya Payroll Rates → New`
 
 | Field | Example value (Feb 2026 rates) |
 |---|---|
@@ -93,14 +93,14 @@ validation is the whole point of this doctype existing; don't work around it.
 No button yet, so this is a terminal command:
 
 ```
-bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.setup.provision --kwargs '{"company": "Royce Technologies LTD"}'
+bench --site [your-site] execute royce_payroll_ke.kenya_payroll.setup.provision --kwargs '{"company": "Royce Technologies LTD"}'
 ```
 
-Leave out `"rates"` and it uses whichever submitted, non-disabled Payroll Rates record has the
+Leave out `"rates"` and it uses whichever submitted, non-disabled Kenya Payroll Rates record has the
 latest Effective From on or before today. To target a specific version instead:
 
 ```
-bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.setup.provision --kwargs '{"company": "Royce Technologies LTD", "rates": "2026-01-01"}'
+bench --site [your-site] execute royce_payroll_ke.kenya_payroll.setup.provision --kwargs '{"company": "Royce Technologies LTD", "rates": "2026-01-01"}'
 ```
 
 If you're testing from a browser instead of a terminal (logged into the desk as a System Manager),
@@ -108,7 +108,7 @@ the same call works from the browser's dev console:
 
 ```js
 frappe.call({
-  method: "royce_payroll_ke.royce_payroll_ke.setup.provision",
+  method: "royce_payroll_ke.kenya_payroll.setup.provision",
   args: { company: "Royce Technologies LTD" },
   callback: (r) => console.log(r.message),
 });
@@ -129,7 +129,7 @@ twice against the same company doesn't duplicate accounts, components, or the st
 | 22 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
 | `Kenya PAYE Placeholder {year}` | Income Tax Slab list | Empty, submitted — required by HRMS validation, never actually read |
 | A Payroll Period covering the calendar year | Payroll Period list | Skipped if one already covers that year for this company |
-| `{ABBR} Payroll Structure {rates version}` | Salary Structure list | Submitted, correct row order baked in — named after the exact Payroll Rates record, not just the year (see section 7) |
+| `{ABBR} Payroll Structure {rates version}` | Salary Structure list | Submitted, correct row order baked in — named after the exact Kenya Payroll Rates record, not just the year (see section 7) |
 
 ---
 
@@ -166,7 +166,7 @@ Individual (one employee, ad hoc): `Salary Slip → New` → pick the employee a
 - PAYE, NSSF, SHIF, Housing Levy amounts are plausible for the gross pay involved.
 - Open the linked Journal Entry after submitting and confirm it balances.
 
-Hand-calculate one payslip independently before trusting a new Payroll Rates version or a new
+Hand-calculate one payslip independently before trusting a new Kenya Payroll Rates version or a new
 company's setup — that's not optional. The generator faithfully encodes the formulas it's given;
 it can't catch an error in the input data (a mistyped rate, a wrong band boundary) by itself.
 
@@ -176,7 +176,7 @@ Structure has the right rows in the right order — without touching any employe
 to run against a real client's site at any time, not just right after provisioning.
 
 ```
-bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.setup.verify --kwargs '{"company": "Royce Technologies LTD"}'
+bench --site [your-site] execute royce_payroll_ke.kenya_payroll.setup.verify --kwargs '{"company": "Royce Technologies LTD"}'
 ```
 
 Raises with every problem it finds, not just the first, and returns a clean summary if there aren't
@@ -188,11 +188,11 @@ is a faster first check, not a replacement for one.
 
 ## 7. When KRA changes a rate
 
-1. Create a **new** Payroll Rates record with the new numbers and the new `Effective From` date.
+1. Create a **new** Kenya Payroll Rates record with the new numbers and the new `Effective From` date.
    Submit it. The old version stays in the system, untouched, for history/audit.
 2. Run:
    ```
-   bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.setup.regenerate --kwargs '{"rates": "2027-01-01"}'
+   bench --site [your-site] execute royce_payroll_ke.kenya_payroll.setup.regenerate --kwargs '{"rates": "2027-01-01"}'
    ```
    This re-templates all 22 components' formulas off the new record, **and** builds a fresh Salary
    Structure for every company already provisioned — automatically, no need to name them.
@@ -222,7 +222,7 @@ old assignment silently computing new-rate numbers on stale formulas.
 Seven reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF
 Contributions**, **Kenya Housing Levy Contributions**, **Kenya NITA Contributions**, **Kenya P10A
 Monthly Return**, **Kenya P9A Tax Deduction Card**, and **Kenya Bank Payroll Advice**. `Ctrl+K`,
-type the name, find them via `/app/query-report/<name>`, or open the **Royce Payroll Ke** workspace
+type the name, find them via `/app/query-report/<name>`, or open the **Kenya Payroll** workspace
 from the app switcher — all seven are listed there under Statutory Reports.
 
 - **Bank Payroll Advice** — filter by Company and a From/To Date range; optionally narrow to one
@@ -244,10 +244,10 @@ from the app switcher — all seven are listed there under Statutory Reports.
   per-employee annual certificate, not a company-wide list. Twelve rows, one per calendar month,
   zeros for months with no submitted slip. **For the actual PDF to hand to the employee**, don't
   use the on-screen report's own export — call
-  `royce_payroll_ke.royce_payroll_ke.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate`
+  `royce_payroll_ke.kenya_payroll.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate`
   with `company`, `fiscal_year`, and `employee`, e.g.:
   ```
-  bench --site [your-site] execute royce_payroll_ke.royce_payroll_ke.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate --kwargs '{"company": "Royce Technologies LTD", "fiscal_year": "2026", "employee": "HR-EMP-00001"}'
+  bench --site [your-site] execute royce_payroll_ke.kenya_payroll.report.kenya_p9a_tax_deduction_card.kenya_p9a_tax_deduction_card.download_certificate --kwargs '{"company": "Royce Technologies LTD", "fiscal_year": "2026", "employee": "HR-EMP-00001"}'
   ```
   (This is a whitelisted method — reachable over the API too, not only `bench execute`; a proper
   "Download PDF" button on the report is on the list, not built yet.)
@@ -273,7 +273,7 @@ fresh and risking duplicates.
 | Symptom | Likely cause |
 |---|---|
 | `provision()` throws "Expected parent account ... not found" | Company's Chart of Accounts doesn't have the standard Kenya group accounts — check Country was set to Kenya when the Company was created |
-| `provision()` throws about Payroll Rates not found | No Payroll Rates record is both submitted and has an Effective From on or before today — check status and date |
+| `provision()` throws about Kenya Payroll Rates not found | No Kenya Payroll Rates record is both submitted and has an Effective From on or before today — check status and date |
 | A component's amount looks wrong on a slip after a rate change | The employee is probably still on a Salary Structure Assignment pointing at the *old* rates version's structure — check which structure they're assigned to and whether it needs a new, dated assignment per section 7 |
 | "A field with the name ... already exists" during install | Another app already owns that exact field name on the same doctype — shouldn't happen with this app's own fields (they're namespaced `royce_p9a_...` / `royce_p10a_...` specifically to avoid this), but worth knowing if it ever shows up from a different app |
 | P9A/P10A show 0 for a column that should have a value | Check the Employee record has `royce_national_id`/`royce_kra_pin` filled in for identity columns; for amount columns, check the Salary Component actually has the right P9A/P10A card type set — blank means excluded on purpose |

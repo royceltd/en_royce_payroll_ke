@@ -1,15 +1,15 @@
-# Royce Payroll KE — Architecture Reference
+# Kenya Payroll — Architecture Reference
 
 Status: **implementation started**. Captures the decisions made so far so we don't re-litigate
 them. Update this file as decisions change — it's meant to stay current, not to be a one-time
 snapshot.
 
-**Built and verified so far:** the `Payroll Rates` doctype + child table, the two Salary Component
-classification fields, and the generator (`royce_payroll_ke.royce_payroll_ke.setup` —
+**Built and verified so far:** the `Kenya Payroll Rates` doctype + child table, the two Salary Component
+classification fields, and the generator (`royce_payroll_ke.kenya_payroll.setup` —
 `provision(company)` and `regenerate()`). All installed and exercised on a real site
 (`mytesterp.localhost`, which also has `hrms` and the old `csf_ke` on it):
 
-- `Payroll Rates` round-trips correctly through `get_effective()`; malformed records (wrong band
+- `Kenya Payroll Rates` round-trips correctly through `get_effective()`; malformed records (wrong band
   count, non-contiguous bounds) are correctly rejected by `validate()`.
 - `provision()` ran end to end against the real "Royce Technologies LTD" company already on that
   site — created the Chart of Accounts, all 22 Salary Components with formulas templated from the
@@ -46,7 +46,7 @@ than assume — `eval_condition_and_formula` reads `struct_row.condition` / `str
 directly off the Salary Structure's own row, never the live Salary Component master. Confirmed the
 gap was real. Rejected the obvious fix (cancel-and-amend the stale structure in place) because it
 risks stranding any Salary Structure Assignment already pointing at it. Fixed instead by naming
-each Salary Structure after the exact Payroll Rates version it was built from
+each Salary Structure after the exact Kenya Payroll Rates version it was built from
 (`{ABBR} Payroll Structure {rates.name}`, not `{year}`) — a new rate, whether next year or a
 mid-year Finance Act amendment, always gets its own distinctly-named structure, and nothing ever
 needs to be cancelled or amended. `regenerate()` now also rebuilds the structure for every
@@ -88,7 +88,7 @@ component is not added to salary slip"). **Statistical components are never pers
 Detail rows at all** — they exist only as in-memory values during calculation. Querying for them
 would have silently returned zero on every P9A ever generated. Fixed by deriving both values
 arithmetically from what *is* persisted instead — `slip.gross_pay` minus the real NSSF/SHIF/Housing
-Levy rows for Chargeable Pay, PAYE Tax plus Payroll Rates' Personal Relief for Tax Charged — the
+Levy rows for Chargeable Pay, PAYE Tax plus Kenya Payroll Rates' Personal Relief for Tax Charged — the
 same relationships the generator itself uses, not a workaround. One honest, documented residual
 limitation: an employee whose Gross PAYE fell below the relief threshold has PAYE = 0 with no
 persisted trace of the true pre-relief figure (the component's own `Condition` prevents it from
@@ -177,13 +177,13 @@ and verified usable by the people at the *current* one, today. Re-ranked discove
 `royce_provision` on that basis and built it first.
 
 **First, a wrong assumption caught before building on it:** had been describing "the auto-generated
-Royce Payroll Ke workspace" as if it were a real, persisted `Workspace` document. Checked before
+Kenya Payroll workspace" as if it were a real, persisted `Workspace` document. Checked before
 touching it — there was no `Workspace`, no `Workspace Sidebar`, nothing in the database at all for
 this app. What the earlier screenshot showed was Frappe's dynamic module-index rendering, not a
 stored document. Would have tried to "polish" something that didn't exist.
 
 **Built for real instead**, matching `royce_talk`'s own committed pattern exactly rather than
-reverse-engineering HRMS's more complex one: a `Workspace` (header, shortcuts to Payroll Rates and
+reverse-engineering HRMS's more complex one: a `Workspace` (header, shortcuts to Kenya Payroll Rates and
 the two annual/monthly reports, a Setup card and a Statutory Reports card covering all six), a
 `Workspace Sidebar` (Home, a Setup section, a Reports section), and a `Desktop Icon` (`accounting`
 glyph — the same one HRMS's own Payroll icon uses, semantically correct — `gray` background,
@@ -304,7 +304,7 @@ it's borrowed time until the next migrate silently reverts it. Reverted both the
 checkout`) and the DB change (confirmed via diff that no trace was left, only a harmless JSON
 key-ordering/timestamp artifact, itself then reverted) and removed the function from the codebase
 entirely — not left in as dead code, since leaving it would invite someone to call it later
-without knowing why it was abandoned. The auto-generated `Royce Payroll Ke` workspace (ships with
+without knowing why it was abandoned. The auto-generated `Kenya Payroll` workspace (ships with
 this app, owned by it, immune to this whole class of problem) stays the answer for "where do I
 find these reports."
 
@@ -337,10 +337,10 @@ assumes as settled.
   components get created **once per site**, not once per client. Only the `Accounts` child-table
   row on each component, `Salary Structure`, `Salary Structure Assignment`, `Payroll Period`, and
   the `Income Tax Slab` placeholder are per-`Company`.
-- **Source of truth for rates:** a new `Payroll Rates` doctype replaces Appendix A's numbers
+- **Source of truth for rates:** a new `Kenya Payroll Rates` doctype replaces Appendix A's numbers
   currently hand-copied into up to 15 components. The generator templates every dependent
   component's formula off it.
-- **Rate changes go through regenerate, not hand edits.** Editing `Payroll Rates` and re-running
+- **Rate changes go through regenerate, not hand edits.** Editing `Kenya Payroll Rates` and re-running
   the generator replaces the guide's §12 sequence — cascading edits across every band whose lower
   bound depends on the changed threshold, done by hand, in exact order, with no safety net but
   "test before rolling out."
@@ -378,9 +378,9 @@ assumes as settled.
 
 ## Open / not yet decided
 
-- Exact `Payroll Rates` schema — shape of the PAYE-band child table, and whether one flat record
+- Exact `Kenya Payroll Rates` schema — shape of the PAYE-band child table, and whether one flat record
   per `effective_from` is enough or something richer is needed.
-- Whether `Payroll Rates` is global per site (current lean: yes — Kenyan statutory rates don't vary
+- Whether `Kenya Payroll Rates` is global per site (current lean: yes — Kenyan statutory rates don't vary
   by employer, only by date) or ever needs a per-`Company` override. Not yet confirmed, only
   assumed.
 - Mechanics of the amend flow when a rate changes and a `Salary Structure` is already
@@ -460,7 +460,7 @@ erDiagram
     }
     SALARY_COMPONENT {
         string name PK "global — one SHIF, one PAYE, site-wide"
-        code formula "templated from Payroll Rates, not hand-typed"
+        code formula "templated from Kenya Payroll Rates, not hand-typed"
     }
     SALARY_COMPONENT_ACCOUNT {
         Link company
@@ -481,10 +481,10 @@ and the structure are per `Company`.
 
 ```mermaid
 flowchart TD
-    A["royce_provision calls\nroyce_payroll_ke.setup.provision(company)"] --> B{"Payroll Rates record\nalready exists on this site?"}
+    A["royce_provision calls\nroyce_payroll_ke.setup.provision(company)"] --> B{"Kenya Payroll Rates record\nalready exists on this site?"}
     B -- no --> C["Load bundled default rates\n(Appendix A of the setup guide)"]
     B -- yes --> D
-    C --> D["Generate/upsert the 22 Salary\nComponents from Payroll Rates\n(site-wide, once)"]
+    C --> D["Generate/upsert the 22 Salary\nComponents from Kenya Payroll Rates\n(site-wide, once)"]
     D --> E["Create the Company's Chart of Accounts\n(statutory payables, expense accounts,\nEmployee Contributions group)"]
     E --> F["Add a (Company, Account) row\nto each relevant component"]
     F --> G["Create Income Tax Slab placeholder\n+ Payroll Period, scoped to Company"]
@@ -502,7 +502,7 @@ whoever happens to be clicking through the UI that day.
 
 ```mermaid
 flowchart TD
-    A["Finance Act / KRA changes a rate\n(e.g. Band 1 threshold 24,000 -> 30,000)"] --> B["Edit the Payroll Rates record,\nnew effective_from"]
+    A["Finance Act / KRA changes a rate\n(e.g. Band 1 threshold 24,000 -> 30,000)"] --> B["Edit the Kenya Payroll Rates record,\nnew effective_from"]
     B --> C["Run regenerate\n(royce_payroll_ke.setup.regenerate())"]
     C --> D["Upsert formulas on every component\nthat derives from the changed rate —\ncascades automatically, per guide §12"]
     D --> E{"Any Salary Structure\nalready Submitted?"}
@@ -510,7 +510,7 @@ flowchart TD
     E -- no --> G
     F --> G["Run verification gate against\na known-good test payslip"]
     G -- fail --> H["Block rollout, surface the mismatch"]
-    G -- pass --> I["New rate live for every site\non this Payroll Rates version"]
+    G -- pass --> I["New rate live for every site\non this Kenya Payroll Rates version"]
 ```
 
 This is the highest-value piece of the whole app: today, a rate change means a human retyping
