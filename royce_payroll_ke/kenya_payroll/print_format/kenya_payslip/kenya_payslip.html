@@ -35,7 +35,7 @@
 </style>
 
 <div class="kx-doc">
-  {% if letter_head and not no_letterhead %}
+  {% if letter_head and not no_letterhead and ctx.use_letter_head %}
   <div class="kx-letterhead">{{ letter_head }}</div>
   <table class="kx-head"><tr><td class="kx-right">
     <div class="kx-title">{{ _("Payslip") }}</div>
@@ -147,5 +147,5 @@
     {{ _("Statutory deductions (PAYE, NSSF, SHIF, Housing Levy) are remitted to the relevant authorities by your employer.") }}
     {{ _("This is a computer-generated payslip and is valid without a signature.") }}
   </div>
-  {% if footer and not no_letterhead %}<div class="kx-letterhead-footer">{{ footer }}</div>{% endif %}
+  {% if footer and not no_letterhead and ctx.use_letter_head %}<div class="kx-letterhead-footer">{{ footer }}</div>{% endif %}
 </div>

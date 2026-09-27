@@ -19,6 +19,13 @@ PRINT_FORMAT = "Kenya Payslip"
 NEUTRAL_ACCENT = "#1f2937"
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 
+# ERPNext's installer creates these letterheads (the grey one as default). Untouched,
+# they aren't the client's letterhead, so the payslip uses its own header instead.
+STOCK_LETTER_HEADS = {
+	"Company Letterhead": "company_letterhead.html",
+	"Company Letterhead - Grey": "company_letterhead_grey.html",
+}
+
 # The employee deductions Kenya allows before PAYE (the Taxable Income formula in
 # setup.py: gross_pay - NSSF_T1 - NSSF_T2 - SHIF - AHL).
 ALLOWABLE_ABBRS = ("NSSF_T1", "NSSF_T2", "SHIF", "AHL")
@@ -54,6 +61,7 @@ def kenya_payslip_context(doc) -> frappe._dict:
 	return frappe._dict(
 		accent=_accent(doc.company),
 		company=_company(doc.company),
+		use_letter_head=uses_own_letter_head(doc),
 		employee=_employee(doc),
 		period=pay_period(doc.start_date, doc.end_date),
 		month=getdate(doc.end_date or doc.start_date).strftime("%B %Y"),
@@ -63,6 +71,20 @@ def kenya_payslip_context(doc) -> frappe._dict:
 		employer_total=sum(flt(r.amount) for r in employer),
 		tax=tax_summary(doc, deductions),
 	)
+
+
+def uses_own_letter_head(doc) -> bool:
+	name = doc.get("letter_head") or frappe.db.get_value("Letter Head", {"is_default": 1, "disabled": 0}, "name")
+	if not name:
+		return False
+	stock_file = STOCK_LETTER_HEADS.get(name)
+	if not stock_file:
+		return True
+	try:
+		shipped = frappe.read_file(frappe.get_app_path("erpnext", "accounts", "letterhead", stock_file))
+	except Exception:
+		return True
+	return (frappe.db.get_value("Letter Head", name, "content") or "").strip() != (shipped or "").strip()
 
 
 def tax_summary(doc, deductions) -> frappe._dict | None:
