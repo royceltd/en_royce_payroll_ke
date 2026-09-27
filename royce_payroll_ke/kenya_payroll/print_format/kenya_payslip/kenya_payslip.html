@@ -35,6 +35,7 @@
   .kx-doc .kx-net { background: #f3f4f6; border-left: 4px solid {{ ctx.accent }}; padding: 9px 14px; margin-top: 12px; }
   .kx-doc .kx-net-amount { font-size: 16pt; font-weight: 700; color: #111827; }
   .kx-doc .kx-words { font-style: italic; color: #6b7280; font-size: 8pt; padding-right: 4px; }
+  .kx-doc .kx-pin { font-size: 8pt; font-weight: 600; color: #374151; margin-top: 2px; }
   .kx-doc .kx-footer { margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 7px; font-size: 7.5pt; color: #6b7280; }
 </style>
 
@@ -51,7 +52,8 @@
       {% if ctx.company.logo %}<img class="kx-logo" src="{{ ctx.company.logo }}" alt="">{% endif %}
       <div class="kx-company">{{ ctx.company.name }}</div>
       {% if ctx.company.address %}<div class="kx-muted kx-small">{{ ctx.company.address }}</div>{% endif %}
-      {% if ctx.company.contact_line %}<div class="kx-muted kx-small">{{ ctx.company.contact_line }}</div>{% endif %}
+      {% if ctx.company.contacts %}<div class="kx-muted kx-small">{% for bit in ctx.company.contacts %}<span style="white-space: nowrap;">{{ bit }}</span>{% if not loop.last %} &middot; {% endif %}{% endfor %}</div>{% endif %}
+      {% if ctx.company.tax_id %}<div class="kx-pin">{{ _("KRA PIN") }}: {{ ctx.company.tax_id }}</div>{% endif %}
     </td>
     <td class="kx-right" style="width: 40%;">
       <div class="kx-title">{{ _("Payslip") }}</div>

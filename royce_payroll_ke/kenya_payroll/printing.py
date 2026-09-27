@@ -11,6 +11,7 @@ DEFAULT is set once at install and is the client's from then on.
 """
 
 import base64
+import re
 
 import frappe
 from frappe.utils import flt, getdate
@@ -190,13 +191,22 @@ def _company(company) -> frappe._dict:
 		address = get_company_address(company).get("company_address_display") or ""
 	except Exception:
 		pass
-	contact = [f"{frappe._('PIN')}: {values.tax_id}" if values.tax_id else "", values.phone_no or "", values.email or ""]
 	return frappe._dict(
 		name=values.company_name or company,
 		logo=_inline_image(values.company_logo),
-		address=address,
-		contact_line="  ·  ".join(bit for bit in contact if bit),
+		address=compact_address(address),
+		tax_id=values.tax_id or "",
+		contacts=[bit for bit in (values.phone_no, values.email) if bit],
 	)
+
+
+def compact_address(address_html) -> str:
+	"""One wrapping line instead of Frappe's one line per field (same as the Kenya
+	Accounting documents)."""
+	if not address_html:
+		return ""
+	parts = [re.sub(r"<[^>]+>", "", line).strip().strip(",") for line in re.split(r"<br\s*/?>|\n", address_html)]
+	return ", ".join(part for part in parts if part)
 
 
 def _inline_image(file_url) -> str:
