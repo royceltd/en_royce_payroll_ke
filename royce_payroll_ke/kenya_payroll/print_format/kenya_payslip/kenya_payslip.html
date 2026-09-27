@@ -4,34 +4,38 @@
 {%- set ctx = kenya_payslip_context(doc) -%}
 {%- macro money(value) -%}{{ frappe.utils.fmt_money(value or 0, precision=2) }}{%- endmacro -%}
 <style>
-  .kx-doc { font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1f2937; font-size: 9.5pt; line-height: 1.45; }
-  .kx-doc table { width: 100%; border-collapse: collapse; }
-  .kx-doc td, .kx-doc th { vertical-align: top; }
-  .kx-muted { color: #6b7280; }
-  .kx-small { font-size: 8.5pt; }
-  .kx-right { text-align: right; }
-  .kx-num { text-align: right; white-space: nowrap; }
-  .kx-head td { padding-bottom: 14px; }
-  .kx-logo { max-height: 60px; max-width: 170px; margin-bottom: 8px; display: block; }
-  .kx-company { font-size: 13pt; font-weight: 700; color: #111827; margin-bottom: 2px; }
-  .kx-title { font-size: 20pt; font-weight: 700; letter-spacing: 0.02em; color: {{ ctx.accent }}; text-transform: uppercase; line-height: 1.1; }
-  .kx-month { font-size: 11pt; font-weight: 600; color: #111827; margin-top: 4px; }
-  .kx-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 3px; font-size: 8pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b91c1c; border: 1px solid #b91c1c; }
-  .kx-rule { border-top: 2px solid {{ ctx.accent }}; margin: 0 0 14px 0; }
-  .kx-caption { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; }
-  .kx-facts td { padding: 0 12px 8px 0; width: 33.3%; }
-  .kx-fact-value { font-weight: 600; color: #111827; }
-  .kx-lines th { background: #f3f4f6; color: #374151; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 8px; text-align: left; border-bottom: 1.5px solid {{ ctx.accent }}; }
-  .kx-lines th.kx-num { text-align: right; }
-  .kx-lines td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
-  .kx-lines tr.kx-sum td { font-weight: 700; color: #111827; border-bottom: none; border-top: 1.5px solid #d1d5db; }
-  .kx-box { border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px 12px; }
-  .kx-tax td { padding: 2px 0; }
-  .kx-tax tr.kx-sum td { font-weight: 700; border-top: 1px solid #d1d5db; padding-top: 4px; }
-  .kx-net { background: #f3f4f6; border-left: 4px solid {{ ctx.accent }}; padding: 12px 16px; margin-top: 16px; }
-  .kx-net-amount { font-size: 18pt; font-weight: 700; color: #111827; }
-  .kx-words { font-style: italic; color: #6b7280; font-size: 8.5pt; }
-  .kx-footer { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 8px; font-size: 8pt; color: #6b7280; }
+  /* Frappe's "Redesign" print style (the default) forces `.print-format td, th
+     { padding: 10px !important }` on every table cell. Reset that inside the
+     payslip first; every padding below is !important for the same reason. */
+  .print-format .kx-doc td, .print-format .kx-doc th, .kx-doc td, .kx-doc th { padding: 0 !important; vertical-align: top; }
+
+  .kx-doc { font-family: "Inter", "Helvetica Neue", Helvetica, Arial, "DejaVu Sans", sans-serif; color: #1f2937; font-size: 9pt; line-height: 1.4; }
+  .kx-doc table { width: 100%; border-collapse: collapse; margin: 0; }
+  .kx-doc .kx-muted { color: #6b7280; }
+  .kx-doc .kx-small { font-size: 8pt; }
+  .kx-doc .kx-right { text-align: right; }
+  .kx-doc .kx-num { text-align: right; white-space: nowrap; }
+  .kx-doc .kx-head td { padding-bottom: 10px !important; }
+  .kx-doc .kx-logo { max-height: 56px; max-width: 170px; margin-bottom: 6px; display: block; }
+  .kx-doc .kx-company { font-size: 12pt; font-weight: 700; color: #111827; margin-bottom: 2px; }
+  .kx-doc .kx-title { font-size: 17pt; font-weight: 700; letter-spacing: 0.01em; color: {{ ctx.accent }}; text-transform: uppercase; line-height: 1.1; white-space: nowrap; }
+  .kx-doc .kx-month { font-size: 10.5pt; font-weight: 600; color: #111827; margin-top: 3px; }
+  .kx-doc .kx-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 3px; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b91c1c; border: 1px solid #b91c1c; }
+  .kx-doc .kx-rule { border-top: 2px solid {{ ctx.accent }}; margin: 0 0 10px 0; }
+  .kx-doc .kx-caption { font-size: 7pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; }
+  .kx-doc .kx-facts td { padding: 0 12px 6px 0 !important; width: 33.3%; }
+  .kx-doc .kx-fact-value { font-weight: 600; color: #111827; word-break: break-word; }
+  .kx-doc .kx-lines th { background: #f3f4f6; color: #374151; font-size: 7pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 8px !important; text-align: left; border-bottom: 1.5px solid {{ ctx.accent }}; }
+  .kx-doc .kx-lines th.kx-num { text-align: right; }
+  .kx-doc .kx-lines td { padding: 4px 8px !important; border-bottom: 1px solid #e5e7eb; }
+  .kx-doc .kx-lines tr.kx-sum td { font-weight: 700; color: #111827; border-bottom: none; border-top: 1.5px solid #d1d5db; }
+  .kx-doc .kx-box { border: 1px solid #e5e7eb; border-radius: 4px; padding: 8px 10px; }
+  .kx-doc .kx-tax td { padding: 1px 0 !important; }
+  .kx-doc .kx-tax tr.kx-sum td { font-weight: 700; border-top: 1px solid #d1d5db; padding-top: 3px !important; }
+  .kx-doc .kx-net { background: #f3f4f6; border-left: 4px solid {{ ctx.accent }}; padding: 9px 14px; margin-top: 12px; }
+  .kx-doc .kx-net-amount { font-size: 16pt; font-weight: 700; color: #111827; }
+  .kx-doc .kx-words { font-style: italic; color: #6b7280; font-size: 8pt; padding-right: 4px; }
+  .kx-doc .kx-footer { margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 7px; font-size: 7.5pt; color: #6b7280; }
 </style>
 
 <div class="kx-doc">
@@ -70,7 +74,7 @@
     {% endfor %}
   </table>
 
-  <table style="margin-top: 10px;"><tr>
+  <table style="margin-top: 8px;"><tr>
     <td style="width: 49%;">
       <table class="kx-lines">
         <thead><tr><th>{{ _("Earnings") }}</th><th class="kx-num">{{ doc.currency }}</th></tr></thead>
@@ -102,13 +106,13 @@
         <div class="kx-caption">{{ _("Net Pay") }}</div>
         <div class="kx-net-amount">{{ doc.currency }} {{ money(doc.net_pay) }}</div>
       </td>
-      <td class="kx-right" style="vertical-align: bottom;">
+      <td class="kx-right" style="vertical-align: middle;">
         <div class="kx-words">{{ doc.total_in_words or frappe.utils.money_in_words(doc.net_pay, doc.currency) }}</div>
       </td>
     </tr></table>
   </div>
 
-  <table style="margin-top: 16px;"><tr>
+  <table style="margin-top: 12px;"><tr>
     {% if ctx.tax %}
     <td style="width: 49%;">
       <div class="kx-box">
