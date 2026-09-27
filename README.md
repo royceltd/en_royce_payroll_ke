@@ -9,6 +9,13 @@ Kenya PAYE, NSSF, SHIF and Housing Levy payroll compliance engine for ERPNext
 - [`docs/architecture.md`](docs/architecture.md) — why it's built this way: decisions, data
   model, open questions.
 
+### Payslip
+
+Kenya Payslip is a standard print format: employer logo and KRA PIN, the employee's
+ID, KRA PIN, NSSF and SHA numbers, and how the PAYE was worked out (taxable pay, tax
+charged, personal relief). It becomes the Salary Slip default once, at install; a
+client's own default is never overwritten after that.
+
 ### Installation
 
 You can install this app using the [bench](https://github.com/frappe/bench) CLI:

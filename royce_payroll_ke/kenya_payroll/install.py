@@ -5,6 +5,7 @@
 
 import frappe
 
+from royce_payroll_ke.kenya_payroll.printing import set_default_print_format
 from royce_payroll_ke.kenya_payroll.setup import seed_default_rates
 
 
@@ -24,3 +25,8 @@ def after_install():
 	an effective Kenya Payroll Rates record."""
 	result = seed_default_rates()
 	frappe.logger("royce_payroll_ke").info(f"after_install: seed_default_rates -> {result}")
+
+	# Kenya Payslip as the Salary Slip default, only if the site has none yet. Here,
+	# not in a fixture, so a client's own default survives every migrate (ADR-023).
+	if set_default_print_format():
+		frappe.logger("royce_payroll_ke").info("after_install: Kenya Payslip set as the Salary Slip default")

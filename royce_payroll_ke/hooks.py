@@ -18,18 +18,6 @@ fixtures = [
 			["module", "=", "Kenya Payroll"],
 		],
 	},
-	# Ships our own branded Salary Slip layout as the default for every new tenant --
-	# installed automatically via bench install-app, no per-tenant manual setup step.
-	{
-		"doctype": "Print Format",
-		"filters": [["name", "=", "Kenya Payslip"]],
-	},
-	# Makes it the DEFAULT a customer sees without picking it from a dropdown first --
-	# see kenyan_accountant's hooks.py for why a Print Format record alone isn't enough.
-	{
-		"doctype": "Property Setter",
-		"filters": [["name", "=", "Salary Slip-main-default_print_format"]],
-	},
 ]
 
 # Each item in the list will be shown as an app in the apps page
@@ -109,6 +97,11 @@ fixtures = [
 
 # before_install = "royce_payroll_ke.install.before_install"
 after_install = "royce_payroll_ke.kenya_payroll.install.after_install"
+
+# Used by the Kenya Payslip print format (kenya_payroll/printing.py). The format is
+# standard (kenya_payroll/print_format/), so fixes reach every client still using
+# it; which format is the default is set once at install (ADR-023 in royce_ip).
+jinja = {"methods": ["royce_payroll_ke.kenya_payroll.printing.kenya_payslip_context"]}
 
 # Uninstallation
 # ------------

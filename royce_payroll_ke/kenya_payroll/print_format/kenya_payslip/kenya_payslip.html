@@ -1,0 +1,151 @@
+{#- Kenya Payslip. Classes are prefixed "kx-": Frappe's print stylesheet already
+    styles generic names like .label as bordered boxes. Tables, not flexbox, for
+    wkhtmltopdf. -#}
+{%- set ctx = kenya_payslip_context(doc) -%}
+{%- macro money(value) -%}{{ frappe.utils.fmt_money(value or 0, precision=2) }}{%- endmacro -%}
+<style>
+  .kx-doc { font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1f2937; font-size: 9.5pt; line-height: 1.45; }
+  .kx-doc table { width: 100%; border-collapse: collapse; }
+  .kx-doc td, .kx-doc th { vertical-align: top; }
+  .kx-muted { color: #6b7280; }
+  .kx-small { font-size: 8.5pt; }
+  .kx-right { text-align: right; }
+  .kx-num { text-align: right; white-space: nowrap; }
+  .kx-head td { padding-bottom: 14px; }
+  .kx-logo { max-height: 60px; max-width: 170px; margin-bottom: 8px; display: block; }
+  .kx-company { font-size: 13pt; font-weight: 700; color: #111827; margin-bottom: 2px; }
+  .kx-title { font-size: 20pt; font-weight: 700; letter-spacing: 0.02em; color: {{ ctx.accent }}; text-transform: uppercase; line-height: 1.1; }
+  .kx-month { font-size: 11pt; font-weight: 600; color: #111827; margin-top: 4px; }
+  .kx-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 3px; font-size: 8pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b91c1c; border: 1px solid #b91c1c; }
+  .kx-rule { border-top: 2px solid {{ ctx.accent }}; margin: 0 0 14px 0; }
+  .kx-caption { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; }
+  .kx-facts td { padding: 0 12px 8px 0; width: 33.3%; }
+  .kx-fact-value { font-weight: 600; color: #111827; }
+  .kx-lines th { background: #f3f4f6; color: #374151; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 8px; text-align: left; border-bottom: 1.5px solid {{ ctx.accent }}; }
+  .kx-lines th.kx-num { text-align: right; }
+  .kx-lines td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+  .kx-lines tr.kx-sum td { font-weight: 700; color: #111827; border-bottom: none; border-top: 1.5px solid #d1d5db; }
+  .kx-box { border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px 12px; }
+  .kx-tax td { padding: 2px 0; }
+  .kx-tax tr.kx-sum td { font-weight: 700; border-top: 1px solid #d1d5db; padding-top: 4px; }
+  .kx-net { background: #f3f4f6; border-left: 4px solid {{ ctx.accent }}; padding: 12px 16px; margin-top: 16px; }
+  .kx-net-amount { font-size: 18pt; font-weight: 700; color: #111827; }
+  .kx-words { font-style: italic; color: #6b7280; font-size: 8.5pt; }
+  .kx-footer { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 8px; font-size: 8pt; color: #6b7280; }
+</style>
+
+<div class="kx-doc">
+  {% if letter_head and not no_letterhead %}
+  <div class="kx-letterhead">{{ letter_head }}</div>
+  <table class="kx-head"><tr><td class="kx-right">
+    <div class="kx-title">{{ _("Payslip") }}</div>
+    <div class="kx-month">{{ ctx.month }}</div>
+  </td></tr></table>
+  {% else %}
+  <table class="kx-head"><tr>
+    <td style="width: 60%;">
+      {% if ctx.company.logo %}<img class="kx-logo" src="{{ ctx.company.logo }}" alt="">{% endif %}
+      <div class="kx-company">{{ ctx.company.name }}</div>
+      {% if ctx.company.address %}<div class="kx-muted kx-small">{{ ctx.company.address }}</div>{% endif %}
+      {% if ctx.company.contact_line %}<div class="kx-muted kx-small">{{ ctx.company.contact_line }}</div>{% endif %}
+    </td>
+    <td class="kx-right" style="width: 40%;">
+      <div class="kx-title">{{ _("Payslip") }}</div>
+      <div class="kx-month">{{ ctx.month }}</div>
+      {% if doc.docstatus == 0 %}<div class="kx-badge">{{ _("Draft") }}</div>{% elif doc.docstatus == 2 %}<div class="kx-badge">{{ _("Cancelled") }}</div>{% endif %}
+    </td>
+  </tr></table>
+  {% endif %}
+  <div class="kx-rule"></div>
+
+  {#- Only the facts this employee actually has on file: no rows of "-". -#}
+  {% set facts = ctx.employee.rows + [("Pay Period", ctx.period), ("Slip No.", doc.name)] %}
+  <table class="kx-facts">
+    {% for row in facts | batch(3) %}
+    <tr>
+      {% for label, value in row %}
+      <td><div class="kx-caption">{{ _(label) }}</div><div class="kx-fact-value">{{ value }}</div></td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+
+  <table style="margin-top: 10px;"><tr>
+    <td style="width: 49%;">
+      <table class="kx-lines">
+        <thead><tr><th>{{ _("Earnings") }}</th><th class="kx-num">{{ doc.currency }}</th></tr></thead>
+        <tbody>
+        {% for row in ctx.earnings %}
+          <tr><td>{{ _(row.salary_component) }}</td><td class="kx-num">{{ money(row.amount) }}</td></tr>
+        {% endfor %}
+          <tr class="kx-sum"><td>{{ _("Gross Pay") }}</td><td class="kx-num">{{ money(doc.gross_pay) }}</td></tr>
+        </tbody>
+      </table>
+    </td>
+    <td style="width: 2%;"></td>
+    <td style="width: 49%;">
+      <table class="kx-lines">
+        <thead><tr><th>{{ _("Deductions") }}</th><th class="kx-num">{{ doc.currency }}</th></tr></thead>
+        <tbody>
+        {% for row in ctx.deductions %}
+          <tr><td>{{ _(row.salary_component) }}</td><td class="kx-num">{{ money(row.amount) }}</td></tr>
+        {% endfor %}
+          <tr class="kx-sum"><td>{{ _("Total Deductions") }}</td><td class="kx-num">{{ money(doc.total_deduction) }}</td></tr>
+        </tbody>
+      </table>
+    </td>
+  </tr></table>
+
+  <div class="kx-net">
+    <table><tr>
+      <td>
+        <div class="kx-caption">{{ _("Net Pay") }}</div>
+        <div class="kx-net-amount">{{ doc.currency }} {{ money(doc.net_pay) }}</div>
+      </td>
+      <td class="kx-right" style="vertical-align: bottom;">
+        <div class="kx-words">{{ doc.total_in_words or frappe.utils.money_in_words(doc.net_pay, doc.currency) }}</div>
+      </td>
+    </tr></table>
+  </div>
+
+  <table style="margin-top: 16px;"><tr>
+    {% if ctx.tax %}
+    <td style="width: 49%;">
+      <div class="kx-box">
+        <div class="kx-caption" style="margin-bottom: 4px;">{{ _("How your PAYE was worked out") }}</div>
+        <table class="kx-tax kx-small">
+          <tr><td>{{ _("Gross pay") }}</td><td class="kx-num">{{ money(ctx.tax.gross) }}</td></tr>
+          {% for row in ctx.tax.allowable %}
+          <tr><td class="kx-muted">{{ _("Less") }} {{ _(row.salary_component) }}</td><td class="kx-num kx-muted">&minus;{{ money(row.amount) }}</td></tr>
+          {% endfor %}
+          <tr class="kx-sum"><td>{{ _("Taxable pay") }}</td><td class="kx-num">{{ money(ctx.tax.taxable) }}</td></tr>
+          <tr><td>{{ _("Tax charged") }}</td><td class="kx-num">{{ money(ctx.tax.charged) }}</td></tr>
+          <tr><td class="kx-muted">{{ _("Less personal relief") }}</td><td class="kx-num kx-muted">&minus;{{ money(ctx.tax.relief) }}</td></tr>
+          <tr class="kx-sum"><td>{{ _("PAYE") }}</td><td class="kx-num">{{ money(ctx.tax.paye) }}</td></tr>
+        </table>
+      </div>
+    </td>
+    <td style="width: 2%;"></td>
+    {% endif %}
+    <td style="width: 49%;">
+      {% if ctx.employer %}
+      <table class="kx-lines">
+        <thead><tr><th>{{ _("Paid by your employer") }}</th><th class="kx-num">{{ doc.currency }}</th></tr></thead>
+        <tbody>
+        {% for row in ctx.employer %}
+          <tr><td>{{ _(row.salary_component) }}</td><td class="kx-num">{{ money(row.amount) }}</td></tr>
+        {% endfor %}
+          <tr class="kx-sum"><td>{{ _("Total") }}</td><td class="kx-num">{{ money(ctx.employer_total) }}</td></tr>
+        </tbody>
+      </table>
+      <div class="kx-muted kx-small" style="margin-top: 4px;">{{ _("Employer contributions are not deducted from your pay.") }}</div>
+      {% endif %}
+    </td>
+  </tr></table>
+
+  <div class="kx-footer">
+    {{ _("Statutory deductions (PAYE, NSSF, SHIF, Housing Levy) are remitted to the relevant authorities by your employer.") }}
+    {{ _("This is a computer-generated payslip and is valid without a signature.") }}
+  </div>
+  {% if footer and not no_letterhead %}<div class="kx-letterhead-footer">{{ footer }}</div>{% endif %}
+</div>
