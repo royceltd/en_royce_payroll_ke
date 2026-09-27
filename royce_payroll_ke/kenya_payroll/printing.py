@@ -140,7 +140,8 @@ def masked(account_no) -> str:
 
 
 def _employee(doc) -> frappe._dict:
-	fields = ["royce_kra_pin", "royce_nssf_no", "royce_shif_no", "royce_national_id", "bank_name", "bank_ac_no"]
+	fields = ["royce_kra_pin", "royce_nssf_no", "royce_shif_no", "royce_national_id", "bank_name", "bank_ac_no",
+		"designation", "department"]
 	meta = frappe.get_meta("Employee")
 	values = frappe.db.get_value("Employee", doc.employee, [f for f in fields if meta.has_field(f)], as_dict=True) or {}
 	rows = [
@@ -150,12 +151,20 @@ def _employee(doc) -> frappe._dict:
 		("KRA PIN", values.get("royce_kra_pin")),
 		("NSSF No.", values.get("royce_nssf_no")),
 		("SHA No.", values.get("royce_shif_no")),
-		("Designation", doc.get("designation")),
-		("Department", doc.get("department")),
+		# The slip's own copy first; the employee's current one for a slip made before it was set.
+		("Designation", doc.get("designation") or values.get("designation")),
+		("Department", _department_name(doc.get("department") or values.get("department"))),
 		("Bank", " ".join(filter(None, [doc.get("bank_name") or values.get("bank_name"),
 			masked(doc.get("bank_account_no") or values.get("bank_ac_no"))]))),
 	]
 	return frappe._dict(rows=[(label, value) for label, value in rows if value])
+
+
+def _department_name(department) -> str:
+	"""'Accounts - MTC' -> 'Accounts': the company-abbreviation suffix means nothing on a payslip."""
+	if not department:
+		return ""
+	return frappe.db.get_value("Department", department, "department_name") or department
 
 
 def _accent(company) -> str:
