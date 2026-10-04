@@ -153,13 +153,29 @@ jinja = {"methods": ["royce_payroll_ke.kenya_payroll.printing.kenya_payslip_cont
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Drop HRMS's false "HR Telemetry Milestone ... already exists" popup. Same
+# doctypes/events hrms.hooks wires to hrms.telemetry.capture_first() (v16.20.0);
+# see kenya_payroll/hrms_noise.py.
+_DROP_TELEMETRY = "royce_payroll_ke.kenya_payroll.hrms_noise.drop_telemetry_duplicate"
+doc_events = {
+	**{
+		dt: {"after_insert": _DROP_TELEMETRY}
+		for dt in (
+			"Employee",
+			"Employee Checkin",
+			"Shift Type",
+			"Leave Type",
+			"Salary Structure",
+			"Job Opening",
+			"Appraisal Cycle",
+			"Employee Onboarding",
+		)
+	},
+	**{
+		dt: {"on_submit": _DROP_TELEMETRY}
+		for dt in ("Salary Slip", "Leave Application", "Expense Claim", "Payroll Entry")
+	},
+}
 
 # Scheduled Tasks
 # ---------------
@@ -191,9 +207,9 @@ jinja = {"methods": ["royce_payroll_ke.kenya_payroll.printing.kenya_payslip_cont
 # ------------------------------
 #
 # Specify custom mixins to extend the standard doctype controller.
-# extend_doctype_class = {
-# 	"Task": "royce_payroll_ke.custom.task.CustomTaskMixin"
-# }
+# Drops HRMS's false "Added tax components ..." alert on every new Salary Slip
+# (Kenya PAYE is formula-based, never a variable_based_on_taxable_salary component).
+extend_doctype_class = {"Salary Slip": "royce_payroll_ke.kenya_payroll.hrms_noise.KenyaSalarySlip"}
 
 # Overriding Methods
 # ------------------------------
