@@ -59,6 +59,16 @@ DEFAULT_RATES = {
 	"ahl_employer_rate": 1.5,
 	"nita_amount": 50,
 	"personal_relief": 2400,
+	# Tax Laws (Amendment) Act 2024 limits; see docs/taxable-income-engine.md.
+	"pension_deduction_limit": 30000,
+	"prmf_deduction_limit": 15000,
+	"mortgage_interest_limit": 30000,
+	"disability_exemption_amount": 150000,
+	"non_cash_benefit_threshold": 5000,
+	"meals_tax_free_limit": 5000,
+	"insurance_relief_rate": 15,
+	"insurance_relief_limit": 5000,
+	"secondary_employment_rate": 35,
 }
 
 
@@ -88,7 +98,7 @@ def make_test_kenya_payroll_rates(effective_from, submit=True, **overrides):
 TEST_COMPANY = "Royce Payroll Test Co"
 
 
-def get_test_company():
+def get_test_company(company_name=TEST_COMPANY, abbr="RPTC"):
 	"""A dedicated, KES-denominated test company — deliberately not
 	"_Test Company" (INR by default, per erpnext's own company test
 	fixture). Retrofitting currency onto a company whose Chart of Accounts
@@ -101,8 +111,8 @@ def get_test_company():
 	docs/architecture.md). A real Kenya client's company is KES from
 	creation, so this fixture is built the same way, not patched after the
 	fact."""
-	if frappe.db.exists("Company", TEST_COMPANY):
-		return TEST_COMPANY
+	if frappe.db.exists("Company", company_name):
+		return company_name
 
 	# Company.on_update() (erpnext's own hook, not ours) auto-creates a
 	# "Goods In Transit" Warehouse linked to Warehouse Type "Transit" — a
@@ -116,8 +126,8 @@ def get_test_company():
 	company = frappe.get_doc(
 		{
 			"doctype": "Company",
-			"company_name": TEST_COMPANY,
-			"abbr": "RPTC",
+			"company_name": company_name,
+			"abbr": abbr,
 			"default_currency": "KES",
 			"country": "Kenya",
 			"chart_of_accounts": "Standard",
@@ -184,6 +194,8 @@ def make_test_payslip(
 	period_start,
 	period_end,
 	holiday_list_name=None,
+	joining_date=None,
+	structure_name=None,
 	**employee_kwargs,
 ):
 	"""Provision `company` off `rates` (if it isn't already), assign a test
@@ -199,11 +211,13 @@ def make_test_payslip(
 	every earning figure) deterministic and independent of ambient fixture
 	data. Pass `holiday_list_name` to share one across several employees in
 	the same test instead of creating a new one per call.
+
+	`joining_date` (inside the period) makes a part-month slip for a mid-month joiner.
 	"""
-	abbr = frappe.db.get_value("Company", company, "abbr")
-	structure_name = f"{abbr} Payroll Structure {rates.name}"
-	if not frappe.db.exists("Salary Structure", structure_name):
-		provision(company, rates=rates.name)
+	joining_date = joining_date or period_start
+	# Idempotent; also makes sure the Income Tax Slab placeholder for this rates year exists.
+	provisioned = provision(company, rates=rates.name)["salary_structure"]
+	structure_name = structure_name or provisioned
 
 	if holiday_list_name:
 		holiday_list = holiday_list_name
@@ -246,7 +260,7 @@ def make_test_payslip(
 		employee_email,
 		company,
 		holiday_list=holiday_list,
-		date_of_joining=period_start,
+		date_of_joining=joining_date,
 		**employee_kwargs,
 	)
 
@@ -264,7 +278,7 @@ def make_test_payslip(
 				"applicable_for": "Employee",
 				"assigned_to": employee,
 				"holiday_list": holiday_list,
-				"from_date": period_start,
+				"from_date": joining_date,
 			}
 		).insert(ignore_permissions=True).submit()
 
@@ -273,7 +287,7 @@ def make_test_payslip(
 		structure_name,
 		company,
 		"KES",
-		from_date=period_start,
+		from_date=joining_date,
 		base=base,
 		income_tax_slab=f"Kenya PAYE Placeholder {rates.effective_from.year}",
 	)

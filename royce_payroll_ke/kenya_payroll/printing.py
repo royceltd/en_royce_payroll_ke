@@ -14,6 +14,7 @@ import base64
 import re
 
 import frappe
+from frappe import _
 from frappe.utils import flt, getdate
 
 PRINT_FORMAT = "Kenya Payslip"
@@ -89,9 +90,16 @@ def uses_own_letter_head(doc) -> bool:
 
 
 def tax_summary(doc, deductions) -> frappe._dict | None:
-	"""Gross pay -> taxable pay -> tax charged -> personal relief -> PAYE, from the
-	rates in force for the slip's period. None when the slip carries no PAYE row
-	and no rates exist (nothing honest to show)."""
+	"""Gross pay -> taxable pay -> tax charged -> reliefs -> PAYE.
+
+	`less` is the list of lines between gross and taxable pay, `reliefs` the lines
+	between tax charged and PAYE, each a dict(label, amount). Slips calculated by the
+	Kenya statutory engine (v16.4.0+) carry the working on the slip itself; older slips
+	are reconstructed from their rows and the rates in force. None when there's nothing
+	honest to show."""
+	if doc.get("royce_kenya_payroll_rates"):
+		return _engine_tax_summary(doc, deductions)
+
 	from royce_payroll_ke.kenya_payroll.doctype.kenya_payroll_rates.kenya_payroll_rates import KenyaPayrollRates
 
 	rates_name = KenyaPayrollRates.get_effective(doc.start_date)
@@ -107,11 +115,43 @@ def tax_summary(doc, deductions) -> frappe._dict | None:
 	charged = paye + relief if paye else band_tax(taxable, rates.paye_bands)
 	return frappe._dict(
 		gross=flt(doc.gross_pay),
-		allowable=allowable,
+		less=[dict(label=_(r.salary_component), amount=-flt(r.amount)) for r in allowable],
 		taxable=taxable,
 		charged=charged,
-		relief=min(relief, charged),
+		reliefs=[dict(label=_("Personal relief"), amount=min(relief, charged))],
 		paye=paye,
+	)
+
+
+def _engine_tax_summary(doc, deductions) -> frappe._dict:
+	from royce_payroll_ke.kenya_payroll.engine import HOUSING_LEVY, PAYE, SHIF
+
+	def row_amount(component):
+		return sum(flt(r.amount) for r in deductions if r.salary_component == component)
+
+	gross = flt(doc.gross_pay)
+	tax_free = gross - flt(doc.royce_taxable_cash_pay)
+	lines = [
+		(_("Tax-free pay"), -tax_free),
+		(_("Taxable benefits"), flt(doc.royce_taxable_non_cash_pay)),
+		(_("Pension contributions (incl. NSSF)"), -flt(doc.royce_pension_allowed)),
+		(_("Post-retirement medical fund"), -flt(doc.royce_prmf_allowed)),
+		(_("Mortgage interest"), -flt(doc.royce_mortgage_interest_allowed)),
+		(_("SHIF"), -row_amount(SHIF)),
+		(_("Housing Levy"), -row_amount(HOUSING_LEVY)),
+		(_("Disability exemption"), -flt(doc.royce_disability_exempted)),
+	]
+	reliefs = [
+		(_("Personal relief"), flt(doc.royce_personal_relief)),
+		(_("Insurance relief"), flt(doc.royce_insurance_relief)),
+	]
+	return frappe._dict(
+		gross=gross,
+		less=[dict(label=label, amount=amount) for label, amount in lines if flt(amount, 2)],
+		taxable=flt(doc.royce_taxable_pay),
+		charged=flt(doc.royce_tax_charged),
+		reliefs=[dict(label=label, amount=amount) for label, amount in reliefs if flt(amount, 2)],
+		paye=row_amount(PAYE),
 	)
 
 

@@ -190,30 +190,42 @@ is a faster first check, not a replacement for one.
 
 1. Create a **new** Kenya Payroll Rates record with the new numbers and the new `Effective From` date.
    Submit it. The old version stays in the system, untouched, for history/audit.
-2. Run:
-   ```
-   bench --site [your-site] execute royce_payroll_ke.kenya_payroll.setup.regenerate --kwargs '{"rates": "2027-01-01"}'
-   ```
-   This re-templates all 22 components' formulas off the new record, **and** builds a fresh Salary
-   Structure for every company already provisioned — automatically, no need to name them.
-3. For each employee who should move onto the new rates, create a **new** Salary Structure
-   Assignment pointing at the new structure, with a From Date on or after the new rates'
-   Effective From — same as any other base-salary change (guide section 8). Don't edit or cancel
-   their existing assignment; a new dated one takes over automatically.
+2. That's it. Since v16.4.0 every payslip uses the Kenya Payroll Rates record in force on its
+   period's end date, so payslips for periods on or after the new date use the new numbers. No
+   regenerate, no new Salary Structure, no re-assigning employees. Payslips already submitted keep
+   their figures (each records which rates record it used, in its Kenya PAYE section).
 
-**Why a new structure instead of updating the old one in place:** Salary Slip reads formulas
-straight off the Structure's own rows, not the live Salary Component master — confirmed directly
-against the HRMS source, not assumed. An in-place update would leave the Structure's formulas
-correct on the master but stale on the row, silently, since the row is only a snapshot taken at
-creation time. Naming each Structure after the exact rates version it was built from instead means
-there's never a stale copy to worry about: an old Structure keeps meaning exactly what it always
-meant, for whoever's still assigned to it, and a new rate always gets its own distinctly-named
-Structure rather than mutating one that other people's payslips already depend on.
+`regenerate()` still exists, but only to re-apply Kenya Payroll's own component definitions (for
+example after a Kenya Payroll upgrade). It never touches a client's own components.
 
-**What this means in practice:** nothing breaks if you forget to reassign someone after a rate
-change — they simply keep running under the old (still internally consistent) structure until you
-do. That's the safe failure mode this is designed around, compared to the alternative of an
-old assignment silently computing new-rate numbers on stale formulas.
+---
+
+## 7B. Telling Kenya Payroll how each component is taxed (v16.4.0+)
+
+NSSF, SHIF, Housing Levy and PAYE are calculated by Kenya Payroll on each payslip, from flags on
+each Salary Component and the employee's Kenya Tax details. Nothing is hard-coded per component.
+
+**Earnings** (Salary Component, Kenya Payroll section):
+- **Is Tax Applicable** (HRMS's own field): part of taxable pay. Untick for reimbursements.
+- **Counts for NSSF / SHIF / Housing Levy**: which statutory charges apply. A new earning starts
+  with all three ticked; untick them for reimbursements and other non-salary payments.
+- **Non-Cash Benefit**: a benefit in kind (car, housing). Also tick Do Not Include in Total.
+  Taxable once the month's benefits reach the threshold in Kenya Payroll Rates (KES 5,000).
+- **Tax-Free Allowance = Meals**: the first KES 5,000 a month is tax-free.
+
+**Deductions** (Kenya Tax Treatment):
+- **Pension Contribution**: added to NSSF; together allowed up to KES 30,000 a month.
+- **Post-Retirement Medical Fund**: allowed up to KES 15,000 a month.
+- **Mortgage Interest**: allowed up to KES 30,000 a month.
+- **Insurance Premium**: gives insurance relief (15%, up to KES 5,000 a month).
+- Blank: an ordinary after-tax deduction (loans, SACCO, HELB, welfare).
+
+**Employee** (Kenya Tax section): tax category (Primary or Secondary Employment), mortgage interest
+and insurance premiums the employee pays directly (monthly, from the lender's or insurer's
+certificate), and a disability exemption with its certificate number and expiry date.
+
+Every limit above lives on Kenya Payroll Rates and changes with a new rates record. Each payslip's
+**Kenya PAYE** section shows the full working: taxable pay, what was allowed, tax charged, reliefs.
 
 ---
 

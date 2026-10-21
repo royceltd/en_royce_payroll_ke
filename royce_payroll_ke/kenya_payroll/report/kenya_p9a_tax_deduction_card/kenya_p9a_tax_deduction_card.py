@@ -11,6 +11,17 @@ from frappe.utils.pdf import get_pdf
 from royce_payroll_ke.kenya_payroll.doctype.kenya_payroll_rates.kenya_payroll_rates import KenyaPayrollRates
 from royce_payroll_ke.kenya_payroll.report_utils import card_type_sums
 
+# PAYE working the statutory engine saves on each Salary Slip (v16.4.0+).
+ENGINE_FIELDS = [
+	"royce_kenya_payroll_rates",
+	"royce_pension_allowed",
+	"royce_mortgage_interest_allowed",
+	"royce_taxable_pay",
+	"royce_tax_charged",
+	"royce_personal_relief",
+	"royce_insurance_relief",
+]
+
 
 def get_columns():
 	return [
@@ -23,11 +34,18 @@ def get_columns():
 			"fieldtype": "Currency",
 			"width": 180,
 		},
+		{
+			"label": _("Owner Occupied Interest | F"),
+			"fieldname": "owner_occupied_interest",
+			"fieldtype": "Currency",
+			"width": 160,
+		},
 		{"label": _("Housing Levy"), "fieldname": "housing_levy", "fieldtype": "Currency", "width": 120},
 		{"label": _("SHIF"), "fieldname": "shif", "fieldtype": "Currency", "width": 110},
 		{"label": _("Chargeable Pay | H"), "fieldname": "chargeable_pay", "fieldtype": "Currency", "width": 140},
 		{"label": _("Tax Charged | I"), "fieldname": "tax_charged", "fieldtype": "Currency", "width": 130},
 		{"label": _("Personal Relief | K"), "fieldname": "personal_relief", "fieldtype": "Currency", "width": 140},
+		{"label": _("Insurance Relief"), "fieldname": "insurance_relief", "fieldtype": "Currency", "width": 130},
 		{"label": _("PAYE Tax | L"), "fieldname": "paye_tax", "fieldtype": "Currency", "width": 120},
 	]
 
@@ -51,7 +69,7 @@ def month_rows(employee, company, year_start, year_end):
 				"start_date": [">=", month_start],
 				"end_date": ["<=", month_end],
 			},
-			fields=["name", "gross_pay"],
+			fields=["name", "gross_pay", *ENGINE_FIELDS],
 		)
 
 		row = {"month": calendar.month_name[month_date.month]}
@@ -71,6 +89,27 @@ def month_rows(employee, company, year_start, year_end):
 		housing_levy = flt(sums.get("Housing Levy"))
 		shif = flt(sums.get("SHIF"))
 		paye_tax = flt(sums.get("PAYE Tax"))
+
+		if all(s.royce_kenya_payroll_rates for s in slips):
+			# Calculated by the statutory engine (v16.4.0+): the working is on the slip.
+			row.update(
+				{
+					"basic_salary": basic_salary,
+					"total_gross_pay": gross_pay,
+					"retirement_scheme": sum(flt(s.royce_pension_allowed) for s in slips),
+					"owner_occupied_interest": sum(flt(s.royce_mortgage_interest_allowed) for s in slips),
+					"housing_levy": housing_levy,
+					"shif": shif,
+					"chargeable_pay": sum(flt(s.royce_taxable_pay) for s in slips),
+					"tax_charged": sum(flt(s.royce_tax_charged) for s in slips),
+					"personal_relief": sum(flt(s.royce_personal_relief) for s in slips),
+					"insurance_relief": sum(flt(s.royce_insurance_relief) for s in slips),
+					"paye_tax": paye_tax,
+				}
+			)
+			rows.append(row)
+			month_date = _next_month(month_date)
+			continue
 
 		rates_name = KenyaPayrollRates.get_effective(month_end)
 		personal_relief = flt(frappe.db.get_value("Kenya Payroll Rates", rates_name, "personal_relief")) if rates_name else 0
@@ -93,11 +132,13 @@ def month_rows(employee, company, year_start, year_end):
 				"basic_salary": basic_salary,
 				"total_gross_pay": gross_pay,
 				"retirement_scheme": retirement,
+				"owner_occupied_interest": 0,
 				"housing_levy": housing_levy,
 				"shif": shif,
 				"chargeable_pay": chargeable_pay,
 				"tax_charged": tax_charged,
 				"personal_relief": personal_relief,
+				"insurance_relief": 0,
 				"paye_tax": paye_tax,
 			}
 		)

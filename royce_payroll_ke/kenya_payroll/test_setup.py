@@ -1,8 +1,8 @@
 # Copyright (c) 2026, Royce Technologies LTD and contributors
 # For license information, please see license.txt
 
-"""Tests for the generator (setup.py): the formulas component_specs()
-produces from a rates record, provision()/verify() agreeing with each
+"""Tests for the generator (setup.py): the components component_specs()
+produces, provision()/verify() agreeing with each
 other, and — the highest-value test in this whole suite — the guide's own
 worked example, run for real against a submitted Salary Slip instead of by
 hand. docs/architecture.md calls that worked example "the highest-value
@@ -28,7 +28,6 @@ from royce_payroll_ke.kenya_payroll.setup import (
 	verify,
 )
 from royce_payroll_ke.kenya_payroll.tests.utils import (
-	DEFAULT_RATES,
 	get_test_company,
 	make_test_kenya_payroll_rates,
 	make_test_payslip,
@@ -36,108 +35,60 @@ from royce_payroll_ke.kenya_payroll.tests.utils import (
 
 
 class TestComponentSpecs(UnitTestCase):
-	"""Locks in the exact formula/condition strings component_specs()
-	produces for the Feb 2026 rates — this is the actual replacement for the
-	setup guide's Section 12 manual, per-component, in-exact-order formula
-	editing, so a change to the generator that silently drifts from the KRA
-	band math should fail here, not get discovered against a real payslip."""
+	"""Kenya Payroll's own Salary Components. Since v16.4.0 only the three earnings
+	carry formulas; the eight statutory components are filled by the engine
+	(engine.py, tested in test_engine.py) and must not depend on payment days, or
+	HRMS would pro-rate the engine's figure a second time."""
 
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.rates = frappe.get_doc({"doctype": "Kenya Payroll Rates", "effective_from": "2026-01-01", **DEFAULT_RATES})
-		cls.specs = component_specs(cls.rates)
+		cls.specs = component_specs()
 
 	def _spec(self, component_name):
 		matches = [s for s in self.specs if s["salary_component"] == component_name]
 		self.assertEqual(len(matches), 1, f"expected exactly one spec for {component_name!r}")
 		return matches[0]
 
-	def test_produces_exactly_22_components(self):
-		self.assertEqual(len(self.specs), 22)
+	def test_produces_exactly_11_components(self):
+		self.assertEqual(len(self.specs), 11)
 
 	def test_basic_and_allowance_formulas(self):
 		self.assertEqual(self._spec("Basic Salary")["formula"], "base")
 		self.assertEqual(self._spec("House Allowance")["formula"], "base * 0.15")
 		self.assertEqual(self._spec("Transport Allowance")["formula"], "base * 0.10")
 
-	def test_nssf_tier_formulas(self):
-		t1 = self._spec("NSSF Tier I - Employee")
-		self.assertEqual(t1["formula"], "(gross_pay if gross_pay < 9000 else 9000) * 0.06")
-		t2 = self._spec("NSSF Tier II - Employee")
-		self.assertEqual(
-			t2["formula"],
-			"((gross_pay if gross_pay < 108000 else 108000) - 9000 if gross_pay > 9000 else 0) * 0.06",
-		)
+	def test_earnings_count_for_every_statutory_charge(self):
+		for name in ("Basic Salary", "House Allowance", "Transport Allowance"):
+			flags = self._spec(name)["flags"]
+			self.assertEqual(flags["is_tax_applicable"], 1, name)
+			self.assertEqual(flags["royce_nssf_pensionable"], 1, name)
+			self.assertEqual(flags["royce_shif_applicable"], 1, name)
+			self.assertEqual(flags["royce_ahl_applicable"], 1, name)
 
-	def test_shif_formula(self):
-		self.assertEqual(
-			self._spec("SHIF")["formula"], "300 if gross_pay * 0.0275 < 300 else gross_pay * 0.0275"
-		)
+	def test_engine_components_have_no_formula_and_no_proration(self):
+		for name in (
+			"NSSF Tier I - Employee", "NSSF Tier II - Employee", "SHIF", "Housing Levy", "PAYE",
+			"NSSF Employer", "Housing Levy Employer", "NITA",
+		):
+			spec = self._spec(name)
+			self.assertEqual(spec["formula"], "", name)
+			self.assertEqual(spec["flags"]["amount_based_on_formula"], 0, name)
+			self.assertEqual(spec["flags"]["depends_on_payment_days"], 0, name)
+			self.assertEqual(spec["flags"]["variable_based_on_taxable_salary"], 0, name)
 
-	def test_housing_levy_formulas(self):
-		self.assertEqual(self._spec("Housing Levy")["formula"], "gross_pay * 0.015")
-		self.assertEqual(self._spec("Housing Levy Employer")["formula"], "gross_pay * 0.015")
+	def test_paye_is_the_income_tax_component(self):
+		self.assertEqual(self._spec("PAYE")["flags"]["is_income_tax_component"], 1)
 
-	def test_taxable_income_formula(self):
-		self.assertEqual(
-			self._spec("Taxable Income")["formula"], "gross_pay - NSSF_T1 - NSSF_T2 - SHIF - AHL"
-		)
+	def test_employer_components_stay_out_of_net_pay(self):
+		for name in ("NSSF Employer", "Housing Levy Employer", "NITA"):
+			self.assertEqual(self._spec(name)["flags"]["do_not_include_in_total"], 1, name)
 
-	def test_paye_bands_follow_the_rate_table(self):
-		# Band 1: 0-24,000 @ 10%
-		self.assertEqual(self._spec("PAYEBand1Max")["condition"], "TI > 0 and TI <= 24000")
-		self.assertEqual(self._spec("PAYEBand1Max")["formula"], "TI * 0.1")
-		self.assertEqual(self._spec("PAYEBand1")["condition"], "TI > 24000")
-		self.assertEqual(self._spec("PAYEBand1")["formula"], "2400")
-
-		# Band 2: 24,000-32,333 @ 25%
-		self.assertEqual(self._spec("PAYEBand2Max")["condition"], "TI > 24000 and TI <= 32333")
-		self.assertEqual(self._spec("PAYEBand2Max")["formula"], "(TI - 24000) * 0.25")
-		self.assertEqual(self._spec("PAYEBand2")["condition"], "TI > 32333")
-		self.assertEqual(self._spec("PAYEBand2")["formula"], "2083.25")
-
-		# Band 3: 32,333-500,000 @ 30%
-		self.assertEqual(self._spec("PAYEBand3Max")["condition"], "TI > 32333 and TI <= 500000")
-		self.assertEqual(self._spec("PAYEBand3Max")["formula"], "(TI - 32333) * 0.3")
-		self.assertEqual(self._spec("PAYEBand3")["condition"], "TI > 500000")
-		self.assertEqual(self._spec("PAYEBand3")["formula"], "140300.1")
-
-		# Band 4: 500,000-800,000 @ 32.5%
-		self.assertEqual(self._spec("PAYEBand4Max")["condition"], "TI > 500000 and TI <= 800000")
-		self.assertEqual(self._spec("PAYEBand4Max")["formula"], "(TI - 500000) * 0.325")
-		self.assertEqual(self._spec("PAYEBand4")["condition"], "TI > 800000")
-		self.assertEqual(self._spec("PAYEBand4")["formula"], "97500")
-
-		# Band 5: 800,000+ @ 35%, open-ended — no Max variant
-		self.assertEqual(self._spec("PAYEBand5")["condition"], "TI > 800000")
-		self.assertEqual(self._spec("PAYEBand5")["formula"], "(TI - 800000) * 0.35")
-
-	def test_gross_paye_sums_every_band_component(self):
-		spec = self._spec("Gross PAYE")
-		self.assertEqual(spec["condition"], "TI > 0")
-		self.assertEqual(
-			spec["formula"],
-			"PAYEBand1Max + PAYEBand1 + PAYEBand2Max + PAYEBand2 + PAYEBand3Max + PAYEBand3"
-			" + PAYEBand4Max + PAYEBand4 + PAYEBand5",
-		)
-
-	def test_paye_applies_personal_relief_as_a_credit(self):
-		spec = self._spec("PAYE")
-		self.assertEqual(spec["condition"], "GROSS_PAYE > 2400")
-		self.assertEqual(spec["formula"], "GROSS_PAYE - 2400")
-		self.assertEqual(spec["p9a"], "PAYE Tax")
-		self.assertEqual(spec["p10a"], "PAYE Tax")
-
-	def test_nita_is_a_flat_amount(self):
-		spec = self._spec("NITA")
-		self.assertEqual(spec["formula"], "50")
-		self.assertEqual(spec["flags"]["depends_on_payment_days"], 0)
-
-	def test_nssf_employer_formula(self):
-		self.assertEqual(
-			self._spec("NSSF Employer")["formula"], "(gross_pay if gross_pay < 108000 else 108000) * 0.06"
-		)
+	def test_return_mappings(self):
+		self.assertEqual(self._spec("PAYE")["p9a"], "PAYE Tax")
+		self.assertEqual(self._spec("PAYE")["p10a"], "PAYE Tax")
+		self.assertEqual(self._spec("SHIF")["p10a"], "SHIF")
+		self.assertEqual(self._spec("Housing Levy")["p10a"], "Affordable Housing Levy")
 
 
 class TestProvisionAndVerify(IntegrationTestCase):
@@ -173,7 +124,7 @@ class TestProvisionAndVerify(IntegrationTestCase):
 		outcome = verify(self.company)
 		self.assertEqual(outcome["status"], "PASS")
 		self.assertEqual(outcome["rates"], self.rates.name)
-		self.assertEqual(outcome["components_checked"], 22)
+		self.assertEqual(outcome["components_checked"], 11)
 
 	def test_provision_is_idempotent(self):
 		first = provision(self.company)
@@ -185,13 +136,13 @@ class TestProvisionAndVerify(IntegrationTestCase):
 		abbr = frappe.db.get_value("Company", self.company, "abbr")
 		account = f"PAYE Payable - {abbr}"
 		frappe.db.set_value("Account", account, "account_type", "")
-		frappe.db.set_value("Salary Component", "PAYE", "formula", "")
+		frappe.db.set_value("Salary Component", "Basic Salary", "formula", "")
 
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			verify(self.company)
 		message = str(ctx.exception)
 		self.assertIn(account, message)
-		self.assertIn("PAYE", message)
+		self.assertIn("Basic Salary", message)
 
 
 class TestPayrollCalculationRegression(IntegrationTestCase):

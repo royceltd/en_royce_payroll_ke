@@ -1,12 +1,12 @@
 # Copyright (c) 2026, Royce Technologies LTD and contributors
 # For license information, please see license.txt
 
-"""The generator: turns one Kenya Payroll Rates record into a working Kenya payroll setup.
+"""The generator: sets a company up for Kenya payroll.
 
-Replaces sections 3-9 of the Royce Payroll Setup Guide v2.1 — Chart of Accounts, the 22
-Salary Components (band-based PAYE, per the guide's approach), the Income Tax Slab
-placeholder, the Payroll Period, and the Salary Structure with row order enforced here
-rather than by whoever happens to be dragging rows in the UI that day.
+Replaces sections 3-9 of the Royce Payroll Setup Guide v2.1 — Chart of Accounts, the
+Salary Components, the Income Tax Slab placeholder, the Payroll Period, and the Salary
+Structure. Since v16.4.0 the statutory amounts (NSSF, SHIF, Housing Levy, PAYE) are
+calculated by engine.py on each slip, not by formulas generated here.
 
 Three entry points:
   seed_default_rates() - per-SITE bootstrap (each client's site is its own database, so
@@ -16,10 +16,10 @@ Three entry points:
                           onboarding staff need to remember separately. Idempotent either
                           way — no-ops if this site already has an effective record.
   provision(company)  - full company setup, run once per new client.
-  regenerate()         - re-templates the 22 components' formulas off the currently
-                          effective Kenya Payroll Rates. Run after a Finance Act rate change.
-                          Does not touch accounts or the structure — those don't depend
-                          on rates.
+  regenerate()         - re-applies Kenya Payroll's own component definitions (never a
+                          client's own components) and account mappings. A rate change
+                          needs no regenerate any more: the engine reads the rates in
+                          force for each slip's period.
 
 All three are safe to run more than once: every step checks for what already exists
 before creating anything.
@@ -115,9 +115,7 @@ def ensure_accounts(company):
 # ---------------------------------------------------------------------------
 
 # Component -> which expense/payable account (unsuffixed; " - {abbr}" is appended per
-# company) its Accounts table row should point to. Components with no entry here
-# (Taxable Income, the 9 band components, Gross PAYE) are pure statistical
-# intermediates and get no Accounts table row at all — matches guide section 6.9.
+# company) its Accounts table row should point to — guide section 6.9.
 ACCOUNT_MAP = {
 	"Basic Salary": "Salary Expense",
 	"House Allowance": "Salary Expense",
@@ -132,10 +130,9 @@ ACCOUNT_MAP = {
 	"NITA": "NITA Expense",
 }
 
-# The exact row order the Salary Structure's Earnings / Deductions tables must use.
-# Frappe evaluates each table in row order; TI must come after the 4 statutory
-# deductions, bands after TI, Gross PAYE after the bands, PAYE last. Reordering this
-# breaks the calculation silently — see guide section 7's own warning.
+# Row order of a new Salary Structure. Since v16.4.0 the statutory amounts come from
+# the engine (engine.py), which doesn't depend on row order; this order is just what
+# reads best on the structure and the slip.
 EARNINGS_ORDER = [
 	"Basic Salary",
 	"House Allowance",
@@ -150,18 +147,16 @@ DEDUCTIONS_ORDER = [
 	"NSSF Tier II - Employee",
 	"SHIF",
 	"Housing Levy",
-	"Taxable Income",
-	"PAYEBand1Max",
-	"PAYEBand1",
-	"PAYEBand2Max",
-	"PAYEBand2",
-	"PAYEBand3Max",
-	"PAYEBand3",
-	"PAYEBand4Max",
-	"PAYEBand4",
-	"PAYEBand5",
-	"Gross PAYE",
 	"PAYE",
+]
+
+# Formula components from before v16.4.0 (taxable income, the band cascade, Gross PAYE).
+# No longer created or updated; left in place because structures built before v16.4.0
+# still list them (the engine ignores them: they are statistical).
+RETIRED_COMPONENTS = [
+	"Taxable Income",
+	"PAYEBand1Max", "PAYEBand1", "PAYEBand2Max", "PAYEBand2", "PAYEBand3Max",
+	"PAYEBand3", "PAYEBand4Max", "PAYEBand4", "PAYEBand5", "Gross PAYE",
 ]
 
 
@@ -170,11 +165,6 @@ def _num(value):
 	'2400' not '2400.0', '2083.25' not '2083.2500000000002'."""
 	value = round(flt(value), 2)
 	return str(int(value)) if value == int(value) else str(value)
-
-
-def _rate(percent_value):
-	"""A Percent field (6, 2.75, 32.5, ...) as the fraction a formula needs (0.06, ...)."""
-	return flt(percent_value) / 100
 
 
 # Shared checkbox blocks, named after guide section 6.1's own groupings.
@@ -190,14 +180,22 @@ _REAL_EARNING_FLAGS = {
 	"is_income_tax_component": 0,
 	"exempted_from_income_tax": 0,
 	"do_not_include_in_accounts": 0,
+	"amount_based_on_formula": 1,
+	"royce_nssf_pensionable": 1,
+	"royce_shif_applicable": 1,
+	"royce_ahl_applicable": 1,
+	"royce_non_cash_benefit": 0,
 }
 
-_STATUTORY_DEDUCTION_FLAGS = {
-	"depends_on_payment_days": 1,
+# Amounts written by the engine on the month's actual pay, so no formula and no
+# payment-days proration (HRMS would otherwise pro-rate the engine's figure again).
+_ENGINE_DEDUCTION_FLAGS = {
+	"amount_based_on_formula": 0,
+	"depends_on_payment_days": 0,
 	"round_to_the_nearest_integer": 1,
 	"remove_if_zero_valued": 1,
 	"statistical_component": 0,
-	"variable_based_on_taxable_salary": 0,
+	"variable_based_on_taxable_salary": 0,  # critical — keeps HRMS's slab engine off
 	"is_income_tax_component": 0,
 	"exempted_from_income_tax": 0,
 	"is_tax_applicable": 0,
@@ -205,59 +203,48 @@ _STATUTORY_DEDUCTION_FLAGS = {
 	"do_not_include_in_accounts": 0,
 }
 
-_STATISTICAL_FLAGS = {
-	"statistical_component": 1,
-	"do_not_include_in_total": 1,
-	"round_to_the_nearest_integer": 1,
-	"remove_if_zero_valued": 1,
-	"amount_based_on_formula": 1,
+_ENGINE_EMPLOYER_FLAGS = {
+	"amount_based_on_formula": 0,
 	"depends_on_payment_days": 0,
-	"variable_based_on_taxable_salary": 0,
-	"is_income_tax_component": 0,
-	"exempted_from_income_tax": 0,
-	"is_tax_applicable": 0,
-	"do_not_include_in_accounts": 0,
-}
-
-_PAYE_FINAL_FLAGS = {
-	"is_income_tax_component": 1,
-	"round_to_the_nearest_integer": 1,
-	"remove_if_zero_valued": 1,
-	"amount_based_on_formula": 1,
-	"statistical_component": 0,
-	"do_not_include_in_total": 0,
-	"variable_based_on_taxable_salary": 0,  # critical — keeps the slab engine off
-	"depends_on_payment_days": 0,
-	"exempted_from_income_tax": 0,
-	"is_tax_applicable": 0,
-	"do_not_include_in_accounts": 0,
-}
-
-_EMPLOYER_EARNING_FLAGS = {
 	"statistical_component": 0,
 	"do_not_include_in_total": 1,
 	"do_not_include_in_accounts": 0,
 	"is_tax_applicable": 0,
 	"round_to_the_nearest_integer": 1,
 	"remove_if_zero_valued": 1,
-	"amount_based_on_formula": 1,
 	"variable_based_on_taxable_salary": 0,
 	"is_income_tax_component": 0,
 	"exempted_from_income_tax": 0,
 	"deduct_full_tax_on_selected_payroll_date": 0,
+	"royce_nssf_pensionable": 0,
+	"royce_shif_applicable": 0,
+	"royce_ahl_applicable": 0,
+	"royce_non_cash_benefit": 0,
 }
 
 
-def component_specs(rates):
-	"""Build the full spec for all 22 components from a submitted Kenya Payroll Rates doc.
+def component_specs(rates=None):
+	"""The 11 Salary Components Kenya Payroll owns: three earnings with formulas and the
+	eight statutory components the engine fills. `rates` is accepted for backward
+	compatibility; nothing here depends on it any more (the engine reads the rates in
+	force for each slip's own period).
 
 	Returns a list of dicts, each with everything needed to create or update one
 	Salary Component and its matching Salary Structure row.
 	"""
-	bands = sorted(rates.paye_bands, key=lambda row: row.band_number)
-	nssf_t1, nssf_t2 = _num(rates.nssf_tier_i_limit), _num(rates.nssf_tier_ii_limit)
 
-	specs = [
+	def engine(name, abbr, type_, p9a="", p10a="", flags=None):
+		return {
+			"salary_component": name,
+			"abbr": abbr,
+			"type": type_,
+			"formula": "",
+			"p9a": p9a,
+			"p10a": p10a,
+			"flags": flags or _ENGINE_DEDUCTION_FLAGS,
+		}
+
+	return [
 		{
 			"salary_component": "Basic Salary",
 			"abbr": "Basic",
@@ -285,180 +272,19 @@ def component_specs(rates):
 			"p10a": "Transport Allowance",
 			"flags": _REAL_EARNING_FLAGS,
 		},
-		{
-			"salary_component": "NSSF Tier I - Employee",
-			"abbr": "NSSF_T1",
-			"type": "Deduction",
-			"formula": f"(gross_pay if gross_pay < {nssf_t1} else {nssf_t1}) * {_rate(rates.nssf_employee_rate)}",
-			"p9a": "E1 Defined Contribution Retirement Scheme",
-			"p10a": "Actual Contribution",
-			"flags": _STATUTORY_DEDUCTION_FLAGS,
-		},
-		{
-			"salary_component": "NSSF Tier II - Employee",
-			"abbr": "NSSF_T2",
-			"type": "Deduction",
-			"formula": (
-				f"((gross_pay if gross_pay < {nssf_t2} else {nssf_t2}) - {nssf_t1}"
-				f" if gross_pay > {nssf_t1} else 0) * {_rate(rates.nssf_employee_rate)}"
-			),
-			"p9a": "E1 Defined Contribution Retirement Scheme",
-			"p10a": "Actual Contribution",
-			"flags": _STATUTORY_DEDUCTION_FLAGS,
-		},
-		{
-			"salary_component": "SHIF",
-			"abbr": "SHIF",
-			"type": "Deduction",
-			"formula": (
-				f"{_num(rates.shif_minimum)} if gross_pay * {_rate(rates.shif_rate)} < {_num(rates.shif_minimum)}"
-				f" else gross_pay * {_rate(rates.shif_rate)}"
-			),
-			"p9a": "SHIF",
-			"p10a": "SHIF",
-			"flags": _STATUTORY_DEDUCTION_FLAGS,
-		},
-		{
-			"salary_component": "Housing Levy",
-			"abbr": "AHL",
-			"type": "Deduction",
-			"formula": f"gross_pay * {_rate(rates.ahl_employee_rate)}",
-			"p9a": "Housing Levy",
-			"p10a": "Affordable Housing Levy",
-			"flags": _STATUTORY_DEDUCTION_FLAGS,
-		},
-		{
-			"salary_component": "Taxable Income",
-			"abbr": "TI",
-			"type": "Deduction",
-			"formula": "gross_pay - NSSF_T1 - NSSF_T2 - SHIF - AHL",
-			"p9a": "",
-			"p10a": "",
-			"flags": _STATISTICAL_FLAGS,
-		},
+		engine("NSSF Tier I - Employee", "NSSF_T1", "Deduction",
+			"E1 Defined Contribution Retirement Scheme", "Actual Contribution"),
+		engine("NSSF Tier II - Employee", "NSSF_T2", "Deduction",
+			"E1 Defined Contribution Retirement Scheme", "Actual Contribution"),
+		engine("SHIF", "SHIF", "Deduction", "SHIF", "SHIF"),
+		engine("Housing Levy", "AHL", "Deduction", "Housing Levy", "Affordable Housing Levy"),
+		# Is Income Tax Component: HRMS's income-tax reports find PAYE by this flag.
+		engine("PAYE", "PAYE", "Deduction", "PAYE Tax", "PAYE Tax",
+			flags={**_ENGINE_DEDUCTION_FLAGS, "is_income_tax_component": 1}),
+		engine("NSSF Employer", "NSSF_ER", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
+		engine("Housing Levy Employer", "AHL_ER", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
+		engine("NITA", "NITA", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
 	]
-
-	# The 9 band components, generated from the rates' own band table rather than
-	# hand-typed — this is the piece that replaces guide section 12's manual cascade.
-	previous_upper = 0
-	for row in bands:
-		is_last = row.band_number == len(bands)
-		rate = _rate(row.rate)
-
-		if not is_last:
-			specs.append(
-				{
-					"salary_component": f"PAYEBand{row.band_number}Max",
-					"abbr": f"PAYEBand{row.band_number}Max",
-					"type": "Deduction",
-					"condition": f"TI > {_num(previous_upper)} and TI <= {_num(row.upper_bound)}",
-					"formula": f"(TI - {_num(previous_upper)}) * {rate}"
-					if previous_upper
-					else f"TI * {rate}",
-					"p9a": "",
-					"p10a": "",
-					"flags": _STATISTICAL_FLAGS,
-				}
-			)
-			width = flt(row.upper_bound) - flt(previous_upper)
-			specs.append(
-				{
-					"salary_component": f"PAYEBand{row.band_number}",
-					"abbr": f"PAYEBand{row.band_number}",
-					"type": "Deduction",
-					"condition": f"TI > {_num(row.upper_bound)}",
-					"formula": _num(width * rate),
-					"p9a": "",
-					"p10a": "",
-					"flags": _STATISTICAL_FLAGS,
-				}
-			)
-			previous_upper = row.upper_bound
-		else:
-			# Open-ended top band — no Max variant, no upper bound.
-			specs.append(
-				{
-					"salary_component": f"PAYEBand{row.band_number}",
-					"abbr": f"PAYEBand{row.band_number}",
-					"type": "Deduction",
-					"condition": f"TI > {_num(previous_upper)}",
-					"formula": f"(TI - {_num(previous_upper)}) * {rate}",
-					"p9a": "",
-					"p10a": "",
-					"flags": _STATISTICAL_FLAGS,
-				}
-			)
-
-	band_abbrs = []
-	for row in bands:
-		if row.band_number != len(bands):
-			band_abbrs += [f"PAYEBand{row.band_number}Max", f"PAYEBand{row.band_number}"]
-		else:
-			band_abbrs += [f"PAYEBand{row.band_number}"]
-
-	specs.append(
-		{
-			"salary_component": "Gross PAYE",
-			"abbr": "GROSS_PAYE",
-			"type": "Deduction",
-			"condition": "TI > 0",
-			"formula": " + ".join(band_abbrs),
-			"p9a": "",
-			"p10a": "",
-			"flags": _STATISTICAL_FLAGS,
-		}
-	)
-
-	specs.append(
-		{
-			"salary_component": "PAYE",
-			"abbr": "PAYE",
-			"type": "Deduction",
-			"condition": f"GROSS_PAYE > {_num(rates.personal_relief)}",
-			"formula": f"GROSS_PAYE - {_num(rates.personal_relief)}",
-			"p9a": "PAYE Tax",
-			"p10a": "PAYE Tax",
-			"flags": _PAYE_FINAL_FLAGS,
-		}
-	)
-
-	specs.append(
-		{
-			"salary_component": "NSSF Employer",
-			"abbr": "NSSF_ER",
-			"type": "Earning",
-			"formula": f"(gross_pay if gross_pay < {nssf_t2} else {nssf_t2}) * {_rate(rates.nssf_employer_rate)}",
-			"p9a": "",
-			"p10a": "",
-			"flags": _EMPLOYER_EARNING_FLAGS,
-		}
-	)
-	specs.append(
-		{
-			"salary_component": "Housing Levy Employer",
-			"abbr": "AHL_ER",
-			"type": "Earning",
-			"formula": f"gross_pay * {_rate(rates.ahl_employer_rate)}",
-			"p9a": "",
-			"p10a": "",
-			"flags": _EMPLOYER_EARNING_FLAGS,
-		}
-	)
-	specs.append(
-		{
-			"salary_component": "NITA",
-			"abbr": "NITA",
-			"type": "Earning",
-			"formula": _num(rates.nita_amount),
-			"p9a": "",
-			"p10a": "",
-			# NITA is a flat amount regardless of days worked — the one deliberate
-			# override from the shared employer-earning block (guide section 6.8).
-			"flags": {**_EMPLOYER_EARNING_FLAGS, "depends_on_payment_days": 0},
-		}
-	)
-
-	return specs
 
 
 def upsert_component(spec):
@@ -478,7 +304,6 @@ def upsert_component(spec):
 
 	for fieldname, value in spec["flags"].items():
 		doc.set(fieldname, value)
-	doc.amount_based_on_formula = 1
 
 	doc.save(ignore_permissions=True)
 	return doc.name
@@ -490,9 +315,7 @@ def ensure_components(rates):
 
 
 def map_accounts(company):
-	"""Add a (company, account) row to every component that needs one — guide section 6.9.
-	Statistical components (TI, the 9 bands, Gross PAYE) are skipped; they have no
-	Accounts table entry by design."""
+	"""Add a (company, account) row to every component that needs one — guide section 6.9."""
 	abbr = frappe.db.get_value("Company", company, "abbr")
 
 	for component, account in ACCOUNT_MAP.items():
@@ -567,29 +390,37 @@ def ensure_payroll_period(company, rates):
 	return doc.name
 
 
-def ensure_salary_structure(company, rates):
-	"""One structure per (company, rates version) — not per (company, year).
+def kenya_structure(company):
+	"""The company's active Kenya Payroll structure, newest first, or None."""
+	return frappe.db.get_value(
+		"Salary Structure",
+		{"company": company, "royce_kenya_statutory": 1, "docstatus": 1, "is_active": "Yes"},
+		"name",
+		order_by="creation desc",
+	)
 
-	This is deliberate, not an accident of convenience: Salary Slip reads formulas
-	straight off the Structure's own row copies (verified against the HRMS source,
-	not assumed — eval_condition_and_formula takes struct_row, never re-reads the
-	Salary Component master). A Structure named only by year would go stale the
-	moment a rate changes mid-year, with nothing anywhere signalling it. Naming it
-	by the exact rates version instead means a new rate always gets a new,
-	distinctly-named structure, and an old one is never silently wrong for a rate
-	change it predates — it just keeps meaning what it always meant."""
+
+def ensure_salary_structure(company, rates=None):
+	"""One Kenya Payroll structure per company, reused if it already exists.
+
+	Before v16.4.0 there was one structure per (company, rates version), because each
+	structure carried its own copy of the rate-dependent formulas. The engine now reads
+	the rates in force for each slip's period, so a rate change no longer needs a new
+	structure or a re-assignment of every employee. A pre-v16.4.0 structure (marked by
+	the v16_4_kenya_statutory_engine patch) counts as the company's structure."""
+	existing = kenya_structure(company)
+	if existing:
+		return existing
+
 	abbr = frappe.db.get_value("Company", company, "abbr")
-	name = f"{abbr} Payroll Structure {rates.name}"
-	if frappe.db.exists("Salary Structure", name):
-		return name
-
 	doc = frappe.new_doc("Salary Structure")
-	doc.name = name
+	doc.name = f"{abbr} Kenya Payroll"
 	doc.company = company
 	doc.currency = "KES"
 	doc.is_active = "Yes"
 	doc.payroll_frequency = "Monthly"
 	doc.salary_slip_based_on_timesheet = 0
+	doc.royce_kenya_statutory = 1
 
 	for component in EARNINGS_ORDER:
 		row = doc.append("earnings", {})
@@ -828,6 +659,16 @@ def seed_default_rates():
 			"ahl_employer_rate": 1.5,
 			"nita_amount": 50,
 			"personal_relief": 2400,
+			# Tax Laws (Amendment) Act 2024 limits; see docs/taxable-income-engine.md.
+			"pension_deduction_limit": 30000,
+			"prmf_deduction_limit": 15000,
+			"mortgage_interest_limit": 30000,
+			"disability_exemption_amount": 150000,
+			"non_cash_benefit_threshold": 5000,
+			"meals_tax_free_limit": 5000,
+			"insurance_relief_rate": 15,
+			"insurance_relief_limit": 5000,
+			"secondary_employment_rate": 35,
 		}
 	)
 	doc.insert(ignore_permissions=True)
@@ -867,24 +708,38 @@ def _require_payroll_read_permission():
 
 
 def _provisioned_companies():
-	"""Companies that already have a Kenya payroll structure. Detected via the
-	'Taxable Income' component rather than a naming convention — it's a marker
-	unique to this app's band engine, so it identifies our structures correctly
-	even if someone renames one."""
-	structure_names = frappe.get_all(
-		"Salary Detail",
-		filters={"salary_component": "Taxable Income", "parenttype": "Salary Structure"},
-		pluck="parent",
+	"""Companies that have a Kenya Payroll structure."""
+	companies = frappe.get_all(
+		"Salary Structure",
+		filters={"royce_kenya_statutory": 1, "docstatus": 1},
+		pluck="company",
+		distinct=True,
 	)
-	companies = {frappe.db.get_value("Salary Structure", name, "company") for name in structure_names}
 	return sorted(c for c in companies if c)
+
+
+def _require_kenya_region():
+	"""HRMS only calls the engine where the site's country is Kenya (regional_overrides
+	is keyed by System Settings country). Anywhere else the statutory rows would stay
+	at zero, silently, so refuse to set payroll up there."""
+	from hrms import get_region
+
+	region = get_region()
+	if region != "Kenya":
+		frappe.throw(
+			_("Kenya Payroll needs the site's country to be Kenya (System Settings), not {0}.").format(
+				frappe.bold(region or _("blank"))
+			),
+			title=_("Country is not Kenya"),
+		)
 
 
 @frappe.whitelist()
 def provision(company, rates=None):
-	"""Full setup for a company: accounts, the 22 components, the Income Tax Slab
+	"""Full setup for a company: accounts, Kenya Payroll's components, the Income Tax Slab
 	placeholder, the Payroll Period, and the Salary Structure. Safe to re-run."""
 	_require_payroll_write_permission()
+	_require_kenya_region()
 	rates_doc = _get_rates_doc(rates)
 
 	ensure_accounts(company)
@@ -919,18 +774,13 @@ def provision(company, rates=None):
 
 @frappe.whitelist()
 def regenerate(rates=None):
-	"""Re-template the 22 components' formulas off the given (or currently effective)
-	Kenya Payroll Rates record, and give every already-provisioned company a fresh Salary
-	Structure for this rates version. Run after a Finance Act rate change — replaces
-	guide section 12's manual, per-component, in-exact-order hand edits.
+	"""Re-apply Kenya Payroll's own component definitions and account mappings to every
+	provisioned company. Only the components listed in component_specs() are touched;
+	a client's own components never are.
 
-	Does not touch any existing Salary Structure Assignment. Employees keep using
-	whatever structure they're currently assigned to — including one built off an
-	older rates version — until someone explicitly reassigns them with a From Date
-	on or after the new rates' effective date, same as any other base-salary change
-	per guide section 8. That's a deliberate choice: it would be worse to silently
-	migrate a live assignment onto new formulas mid-flight than to leave the old
-	assignment as it was and require an explicit, dated, reviewable change."""
+	A Finance Act rate change does NOT need this any more: submit a new Kenya Payroll
+	Rates record with its Effective From date and every slip for a period on or after
+	that date uses it. Existing Salary Structure Assignments stay as they are."""
 	_require_payroll_write_permission()
 	rates_doc = _get_rates_doc(rates)
 	ensure_components(rates_doc)
@@ -939,7 +789,7 @@ def regenerate(rates=None):
 	for company in _provisioned_companies():
 		map_accounts(company)
 		ensure_income_tax_slab_placeholder(company, rates_doc)
-		structures[company] = ensure_salary_structure(company, rates_doc)
+		structures[company] = kenya_structure(company)
 
 	return {"rates": rates_doc.name, "structures": structures}
 
@@ -950,30 +800,31 @@ def verify(company, rates=None):
 	what it should. Deliberately does not create a synthetic employee/payslip
 	to test the math end to end — this needs to be safe to run against a real
 	client's site, and leaving fake test data in someone's production HR
-	system to prove a point is not acceptable. Checks structure instead: do
-	the 22 components exist with formulas, do the accounts exist with the
-	right Account Type, does the current Salary Structure have the right rows
-	in the right order. Raises with every problem found, not just the first —
-	whoever's onboarding a client wants the whole list at once, not one
-	failure per retry.
+	system to prove a point is not acceptable. Checks structure instead: the
+	site's country, Kenya Payroll's components, the accounts and their types,
+	and that the company's Kenya structure carries every statutory row. Raises
+	with every problem found, not just the first.
 
-	`rates` defaults to whatever's currently effective (as before), but can
-	be passed explicitly — matching provision()'s own pattern — so a check
-	run from a specific, possibly-superseded Kenya Payroll Rates record verifies
-	against *that* record rather than silently substituting whatever else
-	happens to be effective today."""
+	`rates` defaults to whatever's currently effective, but can be passed
+	explicitly, matching provision()'s own pattern."""
 	_require_payroll_read_permission()
+	from hrms import get_region
+
 	problems = []
 
 	rates_doc = _get_rates_doc(rates)
 	rates_name = rates_doc.name
 
-	expected_components = [spec["salary_component"] for spec in component_specs(rates_doc)]
-	for name in expected_components:
+	if get_region() != "Kenya":
+		problems.append(_("The site's country (System Settings) is not Kenya, so the statutory engine won't run."))
+
+	specs = component_specs(rates_doc)
+	for spec in specs:
+		name = spec["salary_component"]
 		if not frappe.db.exists("Salary Component", name):
 			problems.append(_("Salary Component {0} is missing.").format(name))
 			continue
-		if not frappe.db.get_value("Salary Component", name, "formula"):
+		if spec["formula"] and not frappe.db.get_value("Salary Component", name, "formula"):
 			problems.append(_("Salary Component {0} has no formula.").format(name))
 
 	abbr = frappe.db.get_value("Company", company, "abbr")
@@ -994,24 +845,16 @@ def verify(company, rates=None):
 	if frappe.db.get_value("Account", payable_name, "account_type") != "Payable":
 		problems.append(_("Account {0} does not have Account Type 'Payable'.").format(payable_name))
 
-	structure_name = f"{abbr} Payroll Structure {rates_name}"
-	if not frappe.db.exists("Salary Structure", structure_name):
-		problems.append(_("Salary Structure {0} is missing.").format(structure_name))
+	structure_name = kenya_structure(company)
+	if not structure_name:
+		problems.append(_("{0} has no active Kenya Payroll Salary Structure.").format(company))
 	else:
 		structure = frappe.get_doc("Salary Structure", structure_name)
-		actual_earnings = [d.salary_component for d in structure.earnings]
-		actual_deductions = [d.salary_component for d in structure.deductions]
-		if actual_earnings != EARNINGS_ORDER:
+		present = {d.salary_component for d in structure.earnings + structure.deductions}
+		missing = [c for c in EARNINGS_ORDER + DEDUCTIONS_ORDER if c not in present]
+		if missing:
 			problems.append(
-				_("{0}'s earnings row order is wrong — got {1}, expected {2}.").format(
-					structure_name, actual_earnings, EARNINGS_ORDER
-				)
-			)
-		if actual_deductions != DEDUCTIONS_ORDER:
-			problems.append(
-				_("{0}'s deductions row order is wrong — got {1}, expected {2}.").format(
-					structure_name, actual_deductions, DEDUCTIONS_ORDER
-				)
+				_("{0} is missing the rows: {1}.").format(structure_name, ", ".join(missing))
 			)
 
 	if problems:
@@ -1022,7 +865,7 @@ def verify(company, rates=None):
 	return {
 		"company": company,
 		"rates": rates_name,
-		"components_checked": len(expected_components),
+		"components_checked": len(specs),
 		"structure": structure_name,
 		"status": "PASS",
 	}

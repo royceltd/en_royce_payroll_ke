@@ -43,7 +43,7 @@ frappe.ui.form.on("Kenya Payroll Rates", {
 function regenerate_components(frm) {
 	frappe.confirm(
 		__(
-			"This re-templates all 22 Salary Components from this rates record, and builds a new Salary Structure for every already-provisioned company. Existing Salary Structure Assignments are left untouched. Continue?"
+			"This re-applies Kenya Payroll's own Salary Components and account mappings for every provisioned company. Your own components are not touched. A rate change does not need this: payslips use the rates in force for their period automatically. Continue?"
 		),
 		() => {
 			frappe.call({
@@ -53,14 +53,11 @@ function regenerate_components(frm) {
 				freeze_message: __("Regenerating payroll components..."),
 				callback(r) {
 					if (r.exc) return;
-					const structure_count = Object.keys(r.message.structures || {}).length;
+					const company_count = Object.keys(r.message.structures || {}).length;
 					frappe.msgprint({
 						title: __("Regenerated"),
 						indicator: "green",
-						message: __("Rates: {0}<br>Salary Structures rebuilt: {1}", [
-							r.message.rates,
-							structure_count,
-						]),
+						message: __("Companies updated: {0}", [company_count]),
 					});
 				},
 			});

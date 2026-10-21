@@ -46,7 +46,11 @@ def get_columns():
 		},
 		{"label": _("SHIF"), "fieldname": "shif", "fieldtype": "Currency", "width": 110},
 		{"label": _("Affordable Housing Levy"), "fieldname": "housing_levy", "fieldtype": "Currency", "width": 160},
+		{"label": _("Mortgage Interest"), "fieldname": "mortgage_interest", "fieldtype": "Currency", "width": 130},
+		{"label": _("Taxable Pay"), "fieldname": "taxable_pay", "fieldtype": "Currency", "width": 120},
+		{"label": _("Tax Payable"), "fieldname": "tax_payable", "fieldtype": "Currency", "width": 120},
 		{"label": _("Monthly Personal Relief"), "fieldname": "personal_relief", "fieldtype": "Currency", "width": 150},
+		{"label": _("Insurance Relief"), "fieldname": "insurance_relief", "fieldtype": "Currency", "width": 130},
 		{"label": _("PAYE Tax"), "fieldname": "paye_tax", "fieldtype": "Currency", "width": 110},
 	]
 
@@ -91,8 +95,20 @@ def execute(filters=None):
 			"start_date": [">=", month_start],
 			"end_date": ["<=", month_end],
 		},
-		fields=["name", "employee"],
+		fields=[
+			"name",
+			"employee",
+			"royce_kenya_payroll_rates",
+			"royce_mortgage_interest_allowed",
+			"royce_taxable_pay",
+			"royce_tax_charged",
+			"royce_personal_relief",
+			"royce_insurance_relief",
+		],
 	)
+	slips_by_employee = {}
+	for slip in slips:
+		slips_by_employee.setdefault(slip.employee, []).append(slip)
 	sums_by_employee = card_type_sums_by_employee(slips, "royce_p10a_tax_deduction_card_type")
 
 	data = []
@@ -100,6 +116,26 @@ def execute(filters=None):
 		sums = sums_by_employee.get(emp.name)
 		if not sums:
 			continue
+
+		emp_slips = slips_by_employee.get(emp.name, [])
+		paye = flt(sums.get("PAYE Tax"))
+		if emp_slips and all(s.royce_kenya_payroll_rates for s in emp_slips):
+			# Calculated by the statutory engine (v16.4.0+): the working is on the slip.
+			working = {
+				"mortgage_interest": sum(flt(s.royce_mortgage_interest_allowed) for s in emp_slips),
+				"taxable_pay": sum(flt(s.royce_taxable_pay) for s in emp_slips),
+				"tax_payable": sum(flt(s.royce_tax_charged) for s in emp_slips),
+				"personal_relief": sum(flt(s.royce_personal_relief) for s in emp_slips),
+				"insurance_relief": sum(flt(s.royce_insurance_relief) for s in emp_slips),
+			}
+		else:
+			working = {
+				"mortgage_interest": 0,
+				"taxable_pay": 0,
+				"tax_payable": paye + personal_relief if paye else 0,
+				"personal_relief": personal_relief,
+				"insurance_relief": 0,
+			}
 
 		total_cash = sum(flt(sums.get(c)) for c in CASH_CATEGORIES)
 		total_non_cash = sum(flt(sums.get(c)) for c in NON_CASH_CATEGORIES)
@@ -121,8 +157,8 @@ def execute(filters=None):
 				"nssf_actual_contribution": flt(sums.get("Actual Contribution")),
 				"shif": flt(sums.get("SHIF")),
 				"housing_levy": flt(sums.get("Affordable Housing Levy")),
-				"personal_relief": personal_relief,
-				"paye_tax": flt(sums.get("PAYE Tax")),
+				**working,
+				"paye_tax": paye,
 			}
 		)
 

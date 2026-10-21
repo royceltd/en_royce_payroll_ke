@@ -121,12 +121,18 @@
         <div class="kx-caption" style="margin-bottom: 4px;">{{ _("How your PAYE was worked out") }}</div>
         <table class="kx-tax kx-small">
           <tr><td>{{ _("Gross pay") }}</td><td class="kx-num">{{ money(ctx.tax.gross) }}</td></tr>
-          {% for row in ctx.tax.allowable %}
-          <tr><td class="kx-muted">{{ _("Less") }} {{ _(row.salary_component) }}</td><td class="kx-num kx-muted">&minus;{{ money(row.amount) }}</td></tr>
+          {% for row in ctx.tax.less %}
+          {% if row.amount < 0 %}
+          <tr><td class="kx-muted">{{ _("Less") }} {{ row.label }}</td><td class="kx-num kx-muted">&minus;{{ money(-row.amount) }}</td></tr>
+          {% else %}
+          <tr><td class="kx-muted">{{ _("Add") }} {{ row.label }}</td><td class="kx-num kx-muted">{{ money(row.amount) }}</td></tr>
+          {% endif %}
           {% endfor %}
           <tr class="kx-sum"><td>{{ _("Taxable pay") }}</td><td class="kx-num">{{ money(ctx.tax.taxable) }}</td></tr>
           <tr><td>{{ _("Tax charged") }}</td><td class="kx-num">{{ money(ctx.tax.charged) }}</td></tr>
-          <tr><td class="kx-muted">{{ _("Less personal relief") }}</td><td class="kx-num kx-muted">&minus;{{ money(ctx.tax.relief) }}</td></tr>
+          {% for row in ctx.tax.reliefs %}
+          <tr><td class="kx-muted">{{ _("Less") }} {{ row.label }}</td><td class="kx-num kx-muted">&minus;{{ money(row.amount) }}</td></tr>
+          {% endfor %}
           <tr class="kx-sum"><td>{{ _("PAYE") }}</td><td class="kx-num">{{ money(ctx.tax.paye) }}</td></tr>
         </table>
       </div>

@@ -186,6 +186,19 @@ doc_events["Salary Slip"]["before_submit"] = (
 doc_events["Payroll Entry"]["validate"] = (
 	"royce_payroll_ke.kenya_payroll.payroll_guards.warn_posting_date_outside_period"
 )
+doc_events["Salary Component"] = {
+	"validate": "royce_payroll_ke.kenya_payroll.engine.validate_salary_component"
+}
+
+# The Kenya statutory engine (kenya_payroll/engine.py): NSSF, SHIF, Housing Levy and
+# PAYE on slips from a Kenya Payroll structure, via HRMS's per-country hook point.
+regional_overrides = {
+	"Kenya": {
+		"hrms.payroll.doctype.salary_slip.salary_slip.apply_regional_deductions": (
+			"royce_payroll_ke.kenya_payroll.engine.apply_kenya_statutory"
+		),
+	}
+}
 
 # Scheduled Tasks
 # ---------------

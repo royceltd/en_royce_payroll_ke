@@ -30,7 +30,22 @@
   "other_section",
   "nita_amount",
   "column_break_other",
-  "personal_relief"
+  "personal_relief",
+  "tax_deductions_section",
+  "pension_deduction_limit",
+  "prmf_deduction_limit",
+  "column_break_tax_deductions",
+  "mortgage_interest_limit",
+  "disability_exemption_amount",
+  "tax_free_section",
+  "non_cash_benefit_threshold",
+  "column_break_tax_free",
+  "meals_tax_free_limit",
+  "reliefs_section",
+  "insurance_relief_rate",
+  "insurance_relief_limit",
+  "column_break_reliefs",
+  "secondary_employment_rate"
  ],
  "fields": [
   {
@@ -175,11 +190,108 @@
    "fieldtype": "Currency",
    "label": "Personal Relief (KES)",
    "reqd": 1
+  },
+  {
+   "fieldname": "tax_deductions_section",
+   "fieldtype": "Section Break",
+   "label": "Deductions Allowed Before Tax (monthly limits)",
+   "description": "Tax Laws (Amendment) Act 2024, in force 27 December 2024."
+  },
+  {
+   "fieldname": "pension_deduction_limit",
+   "fieldtype": "Currency",
+   "label": "Pension Contributions Limit (KES)",
+   "default": "30000",
+   "reqd": 1,
+   "description": "NSSF plus registered pension, provident or individual retirement fund contributions, combined."
+  },
+  {
+   "fieldname": "prmf_deduction_limit",
+   "fieldtype": "Currency",
+   "label": "Post-Retirement Medical Fund Limit (KES)",
+   "default": "15000",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_tax_deductions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mortgage_interest_limit",
+   "fieldtype": "Currency",
+   "label": "Mortgage Interest Limit (KES)",
+   "default": "30000",
+   "reqd": 1,
+   "description": "Owner-occupied home, loan from a Fourth Schedule institution."
+  },
+  {
+   "fieldname": "disability_exemption_amount",
+   "fieldtype": "Currency",
+   "label": "Disability Exemption (KES)",
+   "default": "150000",
+   "reqd": 1,
+   "description": "Default monthly exempt amount for an employee with a disability exemption certificate. Overridable per employee."
+  },
+  {
+   "fieldname": "tax_free_section",
+   "fieldtype": "Section Break",
+   "label": "Tax-Free Benefits"
+  },
+  {
+   "fieldname": "non_cash_benefit_threshold",
+   "fieldtype": "Currency",
+   "label": "Non-Cash Benefits Threshold (KES)",
+   "default": "5000",
+   "reqd": 1,
+   "description": "Non-cash benefits are tax-free while their monthly total stays below this; at or above it, all of it is taxable."
+  },
+  {
+   "fieldname": "column_break_tax_free",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meals_tax_free_limit",
+   "fieldtype": "Currency",
+   "label": "Meals Tax-Free Limit (KES)",
+   "default": "5000",
+   "reqd": 1,
+   "description": "The first amount of employer-provided meals each month is tax-free."
+  },
+  {
+   "fieldname": "reliefs_section",
+   "fieldtype": "Section Break",
+   "label": "Reliefs and Secondary Employment"
+  },
+  {
+   "fieldname": "insurance_relief_rate",
+   "fieldtype": "Percent",
+   "label": "Insurance Relief Rate",
+   "default": "15",
+   "reqd": 1
+  },
+  {
+   "fieldname": "insurance_relief_limit",
+   "fieldtype": "Currency",
+   "label": "Insurance Relief Limit (KES)",
+   "default": "5000",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_reliefs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "secondary_employment_rate",
+   "fieldtype": "Percent",
+   "label": "Secondary Employment Rate",
+   "default": "35",
+   "reqd": 1,
+   "description": "Flat rate on taxable pay for an employee whose main employer is elsewhere. No personal relief."
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-15 00:00:00.000000",
+ "modified": "2026-10-22 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll Rates",

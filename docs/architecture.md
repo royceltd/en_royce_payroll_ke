@@ -327,6 +327,11 @@ assumes as settled.
   `royce_payroll_ke.setup.provision(company)`. It has to work standalone with zero help from
   Royce, because a self-hosted client (Provision 2) installs this app with nobody else in the
   loop.
+- **Superseded 2026-10-22 (v16.4.0):** the statutory amounts are now calculated in Python by
+  `kenya_payroll/engine.py`, through HRMS's `apply_regional_deductions` hook
+  (`regional_overrides` for Kenya), not by the generated formula components described in the
+  next bullet. HRMS's annualising slab engine stays off, for the reason given there. Why and how:
+  `docs/taxable-income-engine.md`.
 - **Calculation approach unchanged:** band-based PAYE via 22 salary components, not ERPNext's
   native Income Tax Slab engine. The guide's v1.0 → v2.0 changelog documents why: the slab engine
   annualises, applies relief against taxable income instead of computed tax, and produces PAYE
