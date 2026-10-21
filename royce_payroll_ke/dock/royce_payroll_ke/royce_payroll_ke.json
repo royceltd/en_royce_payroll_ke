@@ -1,0 +1,24 @@
+{
+ "app": "royce_payroll_ke",
+ "creation": "2026-10-21 19:00:00",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "data-table-soft",
+   "link_to": "Kenya Payroll",
+   "link_type": "Sidebar",
+   "title": "Kenya Payroll"
+  }
+ ],
+ "modified": "2026-10-21 19:00:00.000000",
+ "modified_by": "Administrator",
+ "mount_on": "hrms",
+ "name": "royce_payroll_ke",
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
+}

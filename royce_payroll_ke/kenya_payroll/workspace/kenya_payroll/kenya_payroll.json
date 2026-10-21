@@ -1,7 +1,7 @@
 {
  "app": "royce_payroll_ke",
  "charts": [],
- "content": "[{\"id\": \"rpk-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kenya Payroll</b></span>\", \"col\": 12}}, {\"id\": \"rpk-para\", \"type\": \"paragraph\", \"data\": {\"text\": \"Kenya PAYE, NSSF, SHIF, Housing Levy and NITA payroll compliance.\", \"col\": 12}}, {\"id\": \"rpk-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-shortcut-rates\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kenya Payroll Rates\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p9a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kenya P9A Tax Deduction Card\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p10a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kenya P10A Monthly Return\", \"col\": 4}}, {\"id\": \"rpk-spacer-2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-card-setup\", \"type\": \"card\", \"data\": {\"card_name\": \"Setup\", \"col\": 4}}, {\"id\": \"rpk-card-reports\", \"type\": \"card\", \"data\": {\"card_name\": \"Statutory Reports\", \"col\": 4}}]",
+ "content": "[{\"id\": \"rpk-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kenya Payroll</b></span>\", \"col\": 12}}, {\"id\": \"rpk-para\", \"type\": \"paragraph\", \"data\": {\"text\": \"Kenya PAYE, NSSF, SHIF, Housing Levy and NITA payroll compliance.\", \"col\": 12}}, {\"id\": \"rpk-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-shortcut-rates\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Payroll Rates\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p9a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P9A Tax Deduction Card\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p10a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P10A Monthly Return\", \"col\": 4}}, {\"id\": \"rpk-spacer-2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-card-setup\", \"type\": \"card\", \"data\": {\"card_name\": \"Setup\", \"col\": 4}}, {\"id\": \"rpk-card-reports\", \"type\": \"card\", \"data\": {\"card_name\": \"Statutory Reports\", \"col\": 4}}]",
  "creation": "2026-08-17 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -22,14 +22,14 @@
    "type": "Card Break"
   },
   {
+   "description": "One record per rate version. Effective From, PAYE bands, NSSF/SHIF/AHL/NITA rates, personal relief.",
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Kenya Payroll Rates",
+   "label": "Payroll Rates",
    "link_count": 0,
    "link_to": "Kenya Payroll Rates",
    "link_type": "DocType",
    "onboard": 1,
-   "description": "One record per rate version. Effective From, PAYE bands, NSSF/SHIF/AHL/NITA rates, personal relief.",
    "type": "Link"
   },
   {
@@ -41,20 +41,20 @@
    "type": "Card Break"
   },
   {
+   "description": "Annual, per employee. PDF certificate via download_certificate().",
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya P9A Tax Deduction Card",
+   "label": "P9A Tax Deduction Card",
    "link_count": 0,
    "link_to": "Kenya P9A Tax Deduction Card",
    "link_type": "Report",
    "onboard": 1,
-   "description": "Annual, per employee. PDF certificate via download_certificate().",
    "type": "Link"
   },
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya P10A Monthly Return",
+   "label": "P10A Monthly Return",
    "link_count": 0,
    "link_to": "Kenya P10A Monthly Return",
    "link_type": "Report",
@@ -64,7 +64,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya NSSF Contributions",
+   "label": "NSSF Contributions",
    "link_count": 0,
    "link_to": "Kenya NSSF Contributions",
    "link_type": "Report",
@@ -74,7 +74,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya SHIF Contributions",
+   "label": "SHIF Contributions",
    "link_count": 0,
    "link_to": "Kenya SHIF Contributions",
    "link_type": "Report",
@@ -84,7 +84,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya Housing Levy Contributions",
+   "label": "Housing Levy Contributions",
    "link_count": 0,
    "link_to": "Kenya Housing Levy Contributions",
    "link_type": "Report",
@@ -94,7 +94,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya NITA Contributions",
+   "label": "NITA Contributions",
    "link_count": 0,
    "link_to": "Kenya NITA Contributions",
    "link_type": "Report",
@@ -104,7 +104,7 @@
   {
    "hidden": 0,
    "is_query_report": 1,
-   "label": "Kenya Bank Payroll Advice",
+   "label": "Bank Payroll Advice",
    "link_count": 0,
    "link_to": "Kenya Bank Payroll Advice",
    "link_type": "Report",
@@ -112,7 +112,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-17 02:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll",
@@ -127,7 +127,7 @@
   {
    "color": "Grey",
    "doc_view": "",
-   "label": "Kenya Payroll Rates",
+   "label": "Payroll Rates",
    "link_to": "Kenya Payroll Rates",
    "stats_filter": "{}",
    "type": "DocType"
@@ -135,7 +135,7 @@
   {
    "color": "Grey",
    "doc_view": "",
-   "label": "Kenya P9A Tax Deduction Card",
+   "label": "P9A Tax Deduction Card",
    "link_to": "Kenya P9A Tax Deduction Card",
    "stats_filter": "{}",
    "type": "Report"
@@ -143,7 +143,7 @@
   {
    "color": "Grey",
    "doc_view": "",
-   "label": "Kenya P10A Monthly Return",
+   "label": "P10A Monthly Return",
    "link_to": "Kenya P10A Monthly Return",
    "stats_filter": "{}",
    "type": "Report"
