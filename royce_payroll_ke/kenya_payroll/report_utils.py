@@ -8,8 +8,8 @@ here rather than three times per report, so there's one place to get it right.""
 
 import frappe
 from frappe import _
-from frappe.query_builder.functions import Sum
-from frappe.utils import flt
+from frappe.query_builder.functions import Min, Sum
+from frappe.utils import flt, get_first_day, get_last_day, getdate
 
 
 def statutory_component_report(filters, components, amount_label, id_fieldname=None, id_label=None):
@@ -182,3 +182,109 @@ def card_type_sums_by_employee(slips, fieldname):
 		bucket[category] = bucket.get(category, 0) + flt(amount)
 
 	return sums_by_employee
+
+
+# ---------------------------------------------------------------------------
+# Payroll review (Payroll Variance, Payroll Register)
+# ---------------------------------------------------------------------------
+
+# Slip tables in the order a payslip reads: pay, deductions, then the employer's cost.
+SLIP_TABLES = ("earnings", "deductions", "employer_contributions")
+
+
+def month_bounds(date):
+	date = getdate(date)
+	return get_first_day(date), get_last_day(date)
+
+
+def monthly_payroll(company, month, include_draft=False, department=None):
+	"""Every salary slip of `company` for the calendar month containing `month`, summed per
+	employee: {employee: dict(employee_name, department, gross_pay, total_deduction,
+	net_pay, payment_days, taxable_pay, draft, components={(table, component): amount})}.
+
+	Statistical rows are left out (they're never paid). Cancelled slips never count;
+	drafts count only with `include_draft`, which is how a payroll officer reviews a
+	run before approving it. More than one slip in the month (an off-cycle slip) is added
+	together."""
+	start, end = month_bounds(month)
+	filters = {
+		"company": company,
+		"start_date": [">=", start],
+		"end_date": ["<=", end],
+		"docstatus": ["in", [0, 1]] if include_draft else 1,
+	}
+	if department:
+		filters["department"] = department
+
+	fields = ["name", "employee", "employee_name", "department", "gross_pay", "total_deduction",
+		"net_pay", "payment_days", "docstatus"]
+	if frappe.get_meta("Salary Slip").has_field("royce_taxable_pay"):
+		fields.append("royce_taxable_pay")
+	slips = frappe.get_all("Salary Slip", filters=filters, fields=fields)
+
+	payroll = {}
+	employee_by_slip = {}
+	for slip in slips:
+		employee_by_slip[slip.name] = slip.employee
+		row = payroll.setdefault(
+			slip.employee,
+			frappe._dict(
+				employee_name=slip.employee_name,
+				department=slip.department,
+				gross_pay=0.0,
+				total_deduction=0.0,
+				net_pay=0.0,
+				payment_days=0.0,
+				taxable_pay=0.0,
+				draft=False,
+				components={},
+			),
+		)
+		row.gross_pay += flt(slip.gross_pay)
+		row.total_deduction += flt(slip.total_deduction)
+		row.net_pay += flt(slip.net_pay)
+		row.payment_days += flt(slip.payment_days)
+		row.taxable_pay += flt(slip.get("royce_taxable_pay"))
+		row.draft = row.draft or slip.docstatus == 0
+
+	if slips:
+		detail = frappe.qb.DocType("Salary Detail")
+		rows = (
+			frappe.qb.from_(detail)
+			.select(detail.parent, detail.parentfield, detail.salary_component, Sum(detail.amount))
+			.where(
+				detail.parent.isin(list(employee_by_slip))
+				& (detail.parenttype == "Salary Slip")
+				& detail.parentfield.isin(SLIP_TABLES)
+				& (detail.statistical_component == 0)
+			)
+			.groupby(detail.parent, detail.parentfield, detail.salary_component)
+		).run()
+		for parent, table, component, amount in rows:
+			components = payroll[employee_by_slip[parent]].components
+			components[(table, component)] = components.get((table, component), 0.0) + flt(amount)
+
+	return payroll
+
+
+def component_order(*payrolls):
+	"""(table, component) pairs in payslip order: by table, then by the component's usual
+	position on slips (its smallest row idx), then by name."""
+	keys = {key for payroll in payrolls for row in payroll.values() for key in row.components}
+	if not keys:
+		return []
+	detail = frappe.qb.DocType("Salary Detail")
+	rows = (
+		frappe.qb.from_(detail)
+		.select(detail.parentfield, detail.salary_component, Min(detail.idx))
+		.where(
+			(detail.parenttype == "Salary Structure")
+			& detail.salary_component.isin(list({c for _t, c in keys}))
+		)
+		.groupby(detail.parentfield, detail.salary_component)
+	).run()
+	position = {(table, component): idx for table, component, idx in rows}
+	return sorted(
+		keys,
+		key=lambda key: (SLIP_TABLES.index(key[0]), position.get(key, 999), key[1]),
+	)

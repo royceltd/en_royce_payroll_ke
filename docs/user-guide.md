@@ -247,6 +247,23 @@ Every limit above lives on Kenya Payroll Rates and changes with a new rates reco
 
 ---
 
+## 7C. Reviewing a payroll run (Payroll Review)
+
+Before submitting a month's slips, open **Payroll Variance** (Kenya Payroll → Payroll Review):
+pick the company and the month. Draft slips are included, so you can review the run before
+approving it. Every employee is compared with the month before (or the month in *Compare
+With*): **New** (joined), **Left** (paid last month, not this month), **Changed**, with gross
+and net before and after and a plain list of what changed ("Basic Salary +10,000 · Overtime new
+3,000 · PAYE +2,400"). Unchanged employees are hidden unless you tick *Show Unchanged*. The
+summary at the top shows headcount, joiners, leavers and the change in total gross and net.
+
+**Payroll Register** is the month's payroll on one sheet: each employee's KRA PIN, ID, NSSF and
+SHA numbers, days paid, every earning, deduction and employer contribution in its own column,
+gross, total deductions, net pay and taxable pay, with a totals row. Export it to Excel for the
+accountant or the auditor. It shows submitted slips unless you tick *Include Draft Slips*.
+
+---
+
 ## 7A. Running the statutory reports
 
 Seven reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF

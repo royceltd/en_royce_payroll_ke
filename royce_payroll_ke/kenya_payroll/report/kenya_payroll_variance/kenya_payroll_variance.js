@@ -1,0 +1,57 @@
+// Copyright (c) 2026, Royce Technologies LTD and contributors
+// For license information, please see license.txt
+/* eslint-disable */
+
+frappe.query_reports["Kenya Payroll Variance"] = {
+	filters: [
+		{
+			fieldname: "company",
+			label: __("Company"),
+			fieldtype: "Link",
+			options: "Company",
+			default: frappe.defaults.get_user_default("Company"),
+			reqd: 1,
+		},
+		{
+			fieldname: "month",
+			label: __("Month"),
+			fieldtype: "Date",
+			default: frappe.datetime.get_today(),
+			reqd: 1,
+			description: __("Any date in the month to review."),
+		},
+		{
+			fieldname: "compare_month",
+			label: __("Compare With"),
+			fieldtype: "Date",
+			description: __("Any date in the month to compare with. Blank: the month before."),
+		},
+		{
+			fieldname: "department",
+			label: __("Department"),
+			fieldtype: "Link",
+			options: "Department",
+		},
+		{
+			fieldname: "include_draft",
+			label: __("Include Draft Slips"),
+			fieldtype: "Check",
+			default: 1,
+			description: __("Review a payroll run before submitting it."),
+		},
+		{
+			fieldname: "show_unchanged",
+			label: __("Show Unchanged"),
+			fieldtype: "Check",
+			default: 0,
+		},
+	],
+	formatter(value, row, column, data, default_formatter) {
+		value = default_formatter(value, row, column, data);
+		if (column.fieldname === "status" && data) {
+			const colour = { New: "green", Left: "red", Changed: "orange" }[data.status];
+			if (colour) value = `<span class="indicator-pill ${colour}">${value}</span>`;
+		}
+		return value;
+	},
+};
