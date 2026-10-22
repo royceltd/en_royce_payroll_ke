@@ -17,10 +17,7 @@ clearly-test-only dates for exactly this reason.
 
 import frappe
 from frappe.utils import getdate
-from hrms.payroll.doctype.salary_structure.salary_structure import (
-	create_salary_structure_assignment,
-	make_salary_slip,
-)
+from hrms.payroll.doctype.salary_structure.salary_structure import make_salary_slip
 
 from royce_payroll_ke.kenya_payroll.setup import provision
 
@@ -196,6 +193,7 @@ def make_test_payslip(
 	holiday_list_name=None,
 	joining_date=None,
 	structure_name=None,
+	allowances=None,
 	**employee_kwargs,
 ):
 	"""Provision `company` off `rates` (if it isn't already), assign a test
@@ -213,6 +211,11 @@ def make_test_payslip(
 	the same test instead of creating a new one per call.
 
 	`joining_date` (inside the period) makes a part-month slip for a mid-month joiner.
+
+	`allowances` sets the assignment's monthly House/Transport/Other allowances, e.g.
+	{"royce_house_allowance": 9000}. By default House = 15% and Transport = 10% of base,
+	the split the generator hard-coded before v16.5.0, so every expected figure in this
+	suite (including the setup guide's worked example) still holds.
 	"""
 	joining_date = joining_date or period_start
 	# Idempotent; also makes sure the Income Tax Slab placeholder for this rates year exists.
@@ -282,15 +285,24 @@ def make_test_payslip(
 			}
 		).insert(ignore_permissions=True).submit()
 
-	create_salary_structure_assignment(
-		employee,
-		structure_name,
-		company,
-		"KES",
-		from_date=joining_date,
-		base=base,
-		income_tax_slab=f"Kenya PAYE Placeholder {rates.effective_from.year}",
+	if allowances is None:
+		allowances = {"royce_house_allowance": base * 0.15, "royce_transport_allowance": base * 0.10}
+	assignment = frappe.new_doc("Salary Structure Assignment")
+	assignment.update(
+		{
+			"employee": employee,
+			"salary_structure": structure_name,
+			"company": company,
+			"currency": "KES",
+			"payroll_payable_account": frappe.db.get_value("Company", company, "default_payroll_payable_account"),
+			"from_date": joining_date,
+			"base": base,
+			"income_tax_slab": f"Kenya PAYE Placeholder {rates.effective_from.year}",
+			**allowances,
+		}
 	)
+	assignment.insert(ignore_permissions=True)
+	assignment.submit()
 
 	slip = make_salary_slip(structure_name, employee=employee, posting_date=posting_date)
 	slip.insert(ignore_permissions=True)

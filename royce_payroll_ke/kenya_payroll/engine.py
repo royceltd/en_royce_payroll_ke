@@ -276,9 +276,12 @@ def apply_kenya_statutory(slip):
 	_set_row(slip, "deductions", SHIF, result.shif)
 	_set_row(slip, "deductions", HOUSING_LEVY, result.housing_levy)
 	_set_row(slip, "deductions", PAYE, result.paye)
-	_set_row(slip, "earnings", NSSF_EMPLOYER, result.nssf_employer)
-	_set_row(slip, "earnings", HOUSING_LEVY_EMPLOYER, result.housing_levy_employer)
-	_set_row(slip, "earnings", NITA, result.nita)
+	for component, amount in (
+		(NSSF_EMPLOYER, result.nssf_employer),
+		(HOUSING_LEVY_EMPLOYER, result.housing_levy_employer),
+		(NITA, result.nita),
+	):
+		_set_employer_row(slip, component, amount)
 
 	meta = slip.meta
 	for fieldname, attr in RESULT_FIELDS.items():
@@ -382,6 +385,20 @@ def _tax_profile(employee, rates, period_start) -> TaxProfile:
 		mortgage_interest=flt(emp.royce_mortgage_interest),
 		insurance_premium=flt(emp.royce_insurance_premium),
 	)
+
+
+def _set_employer_row(slip, component, amount):
+	"""Employer contributions go to HRMS's own Employer Contributions section (v16.5.0+:
+	the components are of type Employer Contribution, posted to their own expense and
+	liability accounts). A structure from before v16.5.0 may still list them as earnings
+	left out of the total; those rows are dropped, never paid and never posted twice."""
+	component_type = frappe.get_cached_value("Salary Component", component, "type")
+	if component_type == "Employer Contribution" and slip.meta.has_field("employer_contributions"):
+		for row in [d for d in slip.get("earnings") or [] if d.salary_component == component]:
+			slip.remove(row)
+		_set_row(slip, "employer_contributions", component, amount)
+	else:
+		_set_row(slip, "earnings", component, amount)
 
 
 def _set_row(slip, parentfield, component, amount):

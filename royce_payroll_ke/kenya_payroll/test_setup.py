@@ -35,10 +35,10 @@ from royce_payroll_ke.kenya_payroll.tests.utils import (
 
 
 class TestComponentSpecs(UnitTestCase):
-	"""Kenya Payroll's own Salary Components. Since v16.4.0 only the three earnings
-	carry formulas; the eight statutory components are filled by the engine
-	(engine.py, tested in test_engine.py) and must not depend on payment days, or
-	HRMS would pro-rate the engine's figure a second time."""
+	"""Kenya Payroll's Salary Components (v16.5.0). Owned: the eight statutory components
+	the engine fills (engine.py, tested in test_engine.py), which must not depend on
+	payment days or HRMS would pro-rate the engine's figure a second time. Seeded: pay
+	components and the Kenyan catalogue, each with the flags that decide its tax."""
 
 	@classmethod
 	def setUpClass(cls):
@@ -50,28 +50,70 @@ class TestComponentSpecs(UnitTestCase):
 		self.assertEqual(len(matches), 1, f"expected exactly one spec for {component_name!r}")
 		return matches[0]
 
-	def test_produces_exactly_11_components(self):
-		self.assertEqual(len(self.specs), 11)
+	def test_owns_exactly_the_eight_statutory_components(self):
+		owned = {s["salary_component"] for s in self.specs if s["owned"]}
+		self.assertEqual(
+			owned,
+			{
+				"NSSF Tier I - Employee", "NSSF Tier II - Employee", "SHIF", "Housing Levy", "PAYE",
+				"NSSF Employer", "Housing Levy Employer", "NITA",
+			},
+		)
 
-	def test_basic_and_allowance_formulas(self):
+	def test_names_and_abbreviations_are_unique(self):
+		self.assertEqual(len({s["salary_component"] for s in self.specs}), len(self.specs))
+		self.assertEqual(len({s["abbr"] for s in self.specs}), len(self.specs))
+
+	def test_allowances_come_from_the_assignment_not_a_share_of_basic(self):
 		self.assertEqual(self._spec("Basic Salary")["formula"], "base")
-		self.assertEqual(self._spec("House Allowance")["formula"], "base * 0.15")
-		self.assertEqual(self._spec("Transport Allowance")["formula"], "base * 0.10")
+		self.assertEqual(self._spec("House Allowance")["formula"], "royce_house_allowance")
+		self.assertEqual(self._spec("Transport Allowance")["formula"], "royce_transport_allowance")
+		self.assertEqual(self._spec("Other Allowance")["formula"], "royce_other_allowance")
 
-	def test_earnings_count_for_every_statutory_charge(self):
-		for name in ("Basic Salary", "House Allowance", "Transport Allowance"):
+	def test_pay_counts_for_every_statutory_charge(self):
+		for name in ("Basic Salary", "House Allowance", "Overtime", "Bonus", "Leave Pay"):
 			flags = self._spec(name)["flags"]
 			self.assertEqual(flags["is_tax_applicable"], 1, name)
 			self.assertEqual(flags["royce_nssf_pensionable"], 1, name)
 			self.assertEqual(flags["royce_shif_applicable"], 1, name)
 			self.assertEqual(flags["royce_ahl_applicable"], 1, name)
 
+	def test_variable_pay_is_not_pro_rated(self):
+		self.assertEqual(self._spec("Basic Salary")["flags"]["depends_on_payment_days"], 1)
+		for name in ("Overtime", "Bonus", "Commission", "Leave Pay", "Salary Arrears"):
+			self.assertEqual(self._spec(name)["flags"]["depends_on_payment_days"], 0, name)
+
+	def test_reimbursement_is_untaxed_and_has_no_statutory_charges(self):
+		flags = self._spec("Expense Reimbursement")["flags"]
+		self.assertEqual(
+			(flags["is_tax_applicable"], flags["royce_nssf_pensionable"], flags["royce_shif_applicable"],
+				flags["royce_ahl_applicable"]),
+			(0, 0, 0, 0),
+		)
+
+	def test_benefits_in_kind_are_never_paid_or_posted(self):
+		for name in ("Car Benefit", "Housing Benefit"):
+			flags = self._spec(name)["flags"]
+			self.assertEqual(flags["royce_non_cash_benefit"], 1, name)
+			self.assertEqual(flags["do_not_include_in_total"], 1, name)
+			self.assertEqual(flags["do_not_include_in_accounts"], 1, name)
+
+	def test_meals_allowance_is_tax_free_up_to_the_limit(self):
+		self.assertEqual(self._spec("Meals Allowance")["flags"]["royce_tax_free_allowance"], "Meals")
+
+	def test_deduction_tax_treatment(self):
+		kind = lambda name: self._spec(name)["flags"]["royce_kenya_deduction_type"]  # noqa: E731
+		self.assertEqual(kind("Pension Contribution"), "Pension Contribution")
+		self.assertEqual(kind("Post-Retirement Medical Fund"), "Post-Retirement Medical Fund")
+		self.assertEqual(kind("Insurance Premium"), "Insurance Premium")
+		for name in ("HELB Repayment", "SACCO Contribution", "Staff Welfare", "Union Dues", "Staff Loan Repayment"):
+			self.assertEqual(kind(name), "", name)
+
 	def test_engine_components_have_no_formula_and_no_proration(self):
-		for name in (
-			"NSSF Tier I - Employee", "NSSF Tier II - Employee", "SHIF", "Housing Levy", "PAYE",
-			"NSSF Employer", "Housing Levy Employer", "NITA",
-		):
-			spec = self._spec(name)
+		for spec in self.specs:
+			if not spec["owned"]:
+				continue
+			name = spec["salary_component"]
 			self.assertEqual(spec["formula"], "", name)
 			self.assertEqual(spec["flags"]["amount_based_on_formula"], 0, name)
 			self.assertEqual(spec["flags"]["depends_on_payment_days"], 0, name)
@@ -80,15 +122,52 @@ class TestComponentSpecs(UnitTestCase):
 	def test_paye_is_the_income_tax_component(self):
 		self.assertEqual(self._spec("PAYE")["flags"]["is_income_tax_component"], 1)
 
-	def test_employer_components_stay_out_of_net_pay(self):
-		for name in ("NSSF Employer", "Housing Levy Employer", "NITA"):
-			self.assertEqual(self._spec(name)["flags"]["do_not_include_in_total"], 1, name)
+	def test_employer_contributions_use_the_native_type_and_their_own_liability(self):
+		expected = {
+			"NSSF Employer": ("NSSF Employer Expense", "NSSF Payable"),
+			"Housing Levy Employer": ("AHL Employer Expense", "Housing Levy Payable"),
+			"NITA": ("NITA Expense", "NITA Payable"),
+		}
+		for name, (expense, liability) in expected.items():
+			spec = self._spec(name)
+			self.assertEqual(spec["type"], "Employer Contribution", name)
+			self.assertEqual((spec["account"], spec["liability"]), (expense, liability), name)
 
 	def test_return_mappings(self):
 		self.assertEqual(self._spec("PAYE")["p9a"], "PAYE Tax")
 		self.assertEqual(self._spec("PAYE")["p10a"], "PAYE Tax")
 		self.assertEqual(self._spec("SHIF")["p10a"], "SHIF")
 		self.assertEqual(self._spec("Housing Levy")["p10a"], "Affordable Housing Levy")
+		self.assertEqual(self._spec("Overtime")["p10a"], "Overtime")
+		self.assertEqual(self._spec("Car Benefit")["p10a"], "Value of Car Benefit")
+
+
+class TestSeededComponentsBelongToTheClient(IntegrationTestCase):
+	def test_regenerate_keeps_a_clients_edit_and_restores_an_owned_component(self):
+		rates = make_test_kenya_payroll_rates("1977-01-01")
+		provision(get_test_company(), rates=rates.name)
+		frappe.db.set_value("Salary Component", "Bonus", "is_tax_applicable", 0)
+		frappe.db.set_value("Salary Component", "SHIF", "depends_on_payment_days", 1)
+
+		regenerate(rates=rates.name)
+
+		self.assertEqual(frappe.db.get_value("Salary Component", "Bonus", "is_tax_applicable"), 0)
+		self.assertEqual(frappe.db.get_value("Salary Component", "SHIF", "depends_on_payment_days"), 0)
+		frappe.db.set_value("Salary Component", "Bonus", "is_tax_applicable", 1)
+
+	def test_employer_contributions_get_their_liability_account(self):
+		company = get_test_company()
+		rates = make_test_kenya_payroll_rates("1977-02-01")
+		provision(company, rates=rates.name)
+		abbr = frappe.db.get_value("Company", company, "abbr")
+		row = frappe.db.get_value(
+			"Salary Component Account",
+			{"parent": "NSSF Employer", "company": company},
+			["account", "liability_account"],
+			as_dict=True,
+		)
+		self.assertEqual(row.account, f"NSSF Employer Expense - {abbr}")
+		self.assertEqual(row.liability_account, f"NSSF Payable - {abbr}")
 
 
 class TestProvisionAndVerify(IntegrationTestCase):
@@ -124,7 +203,7 @@ class TestProvisionAndVerify(IntegrationTestCase):
 		outcome = verify(self.company)
 		self.assertEqual(outcome["status"], "PASS")
 		self.assertEqual(outcome["rates"], self.rates.name)
-		self.assertEqual(outcome["components_checked"], 11)
+		self.assertEqual(outcome["components_checked"], 9)
 
 	def test_provision_is_idempotent(self):
 		first = provision(self.company)
@@ -198,7 +277,7 @@ class TestPayrollCalculationRegression(IntegrationTestCase):
 		self.assertEqual(self._amount("deductions", "SHIF"), 5156)
 
 	def test_nita_is_flat_regardless_of_gross(self):
-		self.assertEqual(self._amount("earnings", "NITA"), 50)
+		self.assertEqual(self._amount("employer_contributions", "NITA"), 50)
 
 	def test_housing_levy_matches_frappes_own_rounding(self):
 		expected = rounded(187500 * 0.015)

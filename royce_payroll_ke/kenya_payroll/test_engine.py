@@ -284,3 +284,64 @@ class TestEngineOnRealSlips(IntegrationTestCase):
 		self.assertEqual([r.amount for r in slip.deductions if r.salary_component == "SHIF"], [300])
 		self.assertEqual([r for r in slip.deductions if r.salary_component == "PAYE"], [])
 		self.assertEqual(self._amount(slip, "deductions", "NSSF Tier I - Employee"), 300)
+
+
+class TestEmployerContributionAccounting(IntegrationTestCase):
+	"""Payroll Entry, end to end, and what it leaves in the ledger. Before v16.5.0 the
+	employer contributions were earnings left out of the total, so Payroll Entry
+	credited them to Payroll Payable (as if owed to the employee) instead of NSSF /
+	Housing Levy / NITA Payable."""
+
+	def test_payroll_entry_posts_employer_contributions_to_their_liabilities(self):
+		company = get_test_company()
+		rates = make_test_kenya_payroll_rates("1982-01-01")
+		start, end = "1982-09-01", "1982-09-30"
+		# Base 60,000 + House 9,000 + Transport 6,000 = gross 75,000.
+		employee, standalone = make_test_payslip(
+			company, rates, "royce.payroll.ledger@example.com", base=60000,
+			posting_date=end, period_start=start, period_end=end,
+		)
+		standalone.cancel()  # free the period for the Payroll Entry
+
+		payable, cost_center = frappe.get_cached_value(
+			"Company", company, ["default_payroll_payable_account", "cost_center"]
+		)
+		pe = frappe.new_doc("Payroll Entry")
+		pe.update(
+			{
+				"company": company, "posting_date": end, "start_date": start, "end_date": end,
+				"payroll_frequency": "Monthly", "currency": "KES", "exchange_rate": 1,
+				"payroll_payable_account": payable, "cost_center": cost_center,
+			}
+		)
+		pe.append("employees", {"employee": employee})
+		pe.insert(ignore_permissions=True)
+		pe.submit()
+		frappe.get_doc("Payroll Entry", pe.name).submit_salary_slips()
+
+		slip = frappe.get_doc("Salary Slip", {"payroll_entry": pe.name, "docstatus": 1})
+		employer = {r.salary_component: r.amount for r in slip.employer_contributions}
+		# NSSF on 75,000 at 6%; Housing Levy 1.5%; NITA flat.
+		self.assertEqual(employer, {"NSSF Employer": 4500, "Housing Levy Employer": 1125, "NITA": 50})
+		self.assertFalse([r for r in slip.earnings if r.salary_component in employer])
+
+		journal_entries = frappe.get_all(
+			"Journal Entry Account", filters={"reference_name": pe.name}, pluck="parent", distinct=True
+		)
+		self.assertEqual(len(journal_entries), 2)  # the accrual and HRMS's employer-contribution entry
+		credit = {}
+		for row in frappe.get_all(
+			"GL Entry",
+			filters={"voucher_no": ["in", journal_entries], "is_cancelled": 0},
+			fields=["account", "credit", "debit"],
+		):
+			credit[row.account] = credit.get(row.account, 0) + row.credit - row.debit
+
+		abbr = frappe.db.get_value("Company", company, "abbr")
+		employee_nssf = sum(
+			r.amount for r in slip.deductions if r.salary_component.startswith("NSSF Tier")
+		)
+		self.assertEqual(credit[payable], slip.net_pay)
+		self.assertEqual(credit[f"NSSF Payable - {abbr}"], employee_nssf + 4500)
+		self.assertEqual(credit[f"NITA Payable - {abbr}"], 50)
+		self.assertEqual(credit[f"NSSF Employer Expense - {abbr}"], -4500)

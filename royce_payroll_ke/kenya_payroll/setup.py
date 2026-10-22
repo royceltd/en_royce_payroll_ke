@@ -52,8 +52,16 @@ EXPENSE_ACCOUNTS = [
 	("NITA Expense", "Indirect Expenses", "Expense Account"),
 ]
 
+# For the catalogue's deductions (v16.5.0). Optional: a chart without the parent group
+# just doesn't get the account, and map_accounts() skips the components that need it.
+# No account type, so Payroll Entry can credit them without a party.
+CATALOGUE_ACCOUNTS = [
+	("Employee Deductions Payable", "Accounts Payable", ""),  # HELB, SACCO, pension, insurance...
+	("Staff Loans", "Loans and Advances (Assets)", ""),  # staff loan repayments reduce this asset
+]
 
-def _ensure_account(account_name, parent_name, account_type, company, abbr):
+
+def _ensure_account(account_name, parent_name, account_type, company, abbr, optional=False):
 	"""Create an account if missing. If it already exists — which happens for
 	Payroll Payable specifically, since ERPNext auto-creates it at company setup —
 	verify its Account Type is still correct and fix it if not. Existence alone
@@ -68,6 +76,8 @@ def _ensure_account(account_name, parent_name, account_type, company, abbr):
 		return
 
 	parent_account = frappe.db.get_value("Account", f"{parent_name} - {abbr}", "name")
+	if not parent_account and optional:
+		return
 	if not parent_account:
 		frappe.throw(
 			_("Expected parent account {0} not found under {1} — is the Chart of Accounts set up?").format(
@@ -101,6 +111,9 @@ def ensure_accounts(company):
 
 	_ensure_account("Payroll Payable", "Accounts Payable", "Payable", company, abbr)
 
+	for account_name, parent_name, account_type in CATALOGUE_ACCOUNTS:
+		_ensure_account(account_name, parent_name, account_type, company, abbr, optional=True)
+
 	# So Payroll Entry pre-fills this instead of making someone pick it by hand every
 	# run — one fewer manually-selected account, one fewer chance to pick the wrong one.
 	# Only set if currently blank: don't override a deliberate client customisation.
@@ -113,33 +126,21 @@ def ensure_accounts(company):
 # ---------------------------------------------------------------------------
 # Salary Components
 # ---------------------------------------------------------------------------
+#
+# Two kinds of component (v16.5.0):
+#   owned  - the eight statutory components the engine (engine.py) fills. Re-applied by
+#            provision() and regenerate(): Kenya Payroll is the only source of truth.
+#   seeded - pay components and the Kenyan catalogue. Created once if missing, then
+#            they're the client's: never overwritten, so a client's edits survive every
+#            upgrade and every regenerate().
 
-# Component -> which expense/payable account (unsuffixed; " - {abbr}" is appended per
-# company) its Accounts table row should point to — guide section 6.9.
-ACCOUNT_MAP = {
-	"Basic Salary": "Salary Expense",
-	"House Allowance": "Salary Expense",
-	"Transport Allowance": "Salary Expense",
-	"NSSF Tier I - Employee": "NSSF Payable",
-	"NSSF Tier II - Employee": "NSSF Payable",
-	"SHIF": "SHIF Payable",
-	"Housing Levy": "Housing Levy Payable",
-	"PAYE": "PAYE Payable",
-	"NSSF Employer": "NSSF Employer Expense",
-	"Housing Levy Employer": "AHL Employer Expense",
-	"NITA": "NITA Expense",
-}
-
-# Row order of a new Salary Structure. Since v16.4.0 the statutory amounts come from
-# the engine (engine.py), which doesn't depend on row order; this order is just what
-# reads best on the structure and the slip.
+# Row order of a new Salary Structure. The engine doesn't depend on row order; this is
+# just what reads best on the structure and the slip.
 EARNINGS_ORDER = [
 	"Basic Salary",
 	"House Allowance",
 	"Transport Allowance",
-	"NSSF Employer",
-	"Housing Levy Employer",
-	"NITA",
+	"Other Allowance",
 ]
 
 DEDUCTIONS_ORDER = [
@@ -148,6 +149,12 @@ DEDUCTIONS_ORDER = [
 	"SHIF",
 	"Housing Levy",
 	"PAYE",
+]
+
+EMPLOYER_ORDER = [
+	"NSSF Employer",
+	"Housing Levy Employer",
+	"NITA",
 ]
 
 # Formula components from before v16.4.0 (taxable income, the band cascade, Gross PAYE).
@@ -167,55 +174,78 @@ def _num(value):
 	return str(int(value)) if value == int(value) else str(value)
 
 
-# Shared checkbox blocks, named after guide section 6.1's own groupings.
-_REAL_EARNING_FLAGS = {
-	"depends_on_payment_days": 1,
-	"is_tax_applicable": 1,
-	"round_to_the_nearest_integer": 1,
-	"remove_if_zero_valued": 1,
+_NEUTRAL_FLAGS = {
 	"statistical_component": 0,
-	"do_not_include_in_total": 0,
-	"deduct_full_tax_on_selected_payroll_date": 0,
-	"variable_based_on_taxable_salary": 0,
+	"variable_based_on_taxable_salary": 0,  # critical — keeps HRMS's slab engine off
 	"is_income_tax_component": 0,
 	"exempted_from_income_tax": 0,
+	"deduct_full_tax_on_selected_payroll_date": 0,
+	"do_not_include_in_total": 0,
 	"do_not_include_in_accounts": 0,
+	"remove_if_zero_valued": 1,
+	"round_to_the_nearest_integer": 1,
+}
+
+# Pay on the structure (Basic and the fixed monthly allowances): a formula, pro-rated
+# for part months, and part of every statutory base.
+_MONTHLY_PAY_FLAGS = {
+	**_NEUTRAL_FLAGS,
 	"amount_based_on_formula": 1,
+	"depends_on_payment_days": 1,
+	"is_tax_applicable": 1,
 	"royce_nssf_pensionable": 1,
 	"royce_shif_applicable": 1,
 	"royce_ahl_applicable": 1,
 	"royce_non_cash_benefit": 0,
+	"royce_tax_free_allowance": "",
+}
+
+# Pay entered per month through Additional Salary (overtime, bonus...): the amount is
+# what was earned, so it's never pro-rated.
+_VARIABLE_PAY_FLAGS = {**_MONTHLY_PAY_FLAGS, "amount_based_on_formula": 0, "depends_on_payment_days": 0}
+
+_REIMBURSEMENT_FLAGS = {
+	**_VARIABLE_PAY_FLAGS,
+	"is_tax_applicable": 0,
+	"royce_nssf_pensionable": 0,
+	"royce_shif_applicable": 0,
+	"royce_ahl_applicable": 0,
+}
+
+# A benefit in kind: taxable past the threshold, never paid in cash, never posted by
+# payroll (its cost is booked where it was incurred, e.g. the car's running costs).
+_NON_CASH_FLAGS = {
+	**_REIMBURSEMENT_FLAGS,
+	"is_tax_applicable": 1,
+	"royce_non_cash_benefit": 1,
+	"do_not_include_in_total": 1,
+	"do_not_include_in_accounts": 1,
+}
+
+_DEDUCTION_FLAGS = {
+	**_NEUTRAL_FLAGS,
+	"amount_based_on_formula": 0,
+	"depends_on_payment_days": 0,
+	"is_tax_applicable": 0,
+	"royce_kenya_deduction_type": "",
 }
 
 # Amounts written by the engine on the month's actual pay, so no formula and no
 # payment-days proration (HRMS would otherwise pro-rate the engine's figure again).
 _ENGINE_DEDUCTION_FLAGS = {
+	**_NEUTRAL_FLAGS,
 	"amount_based_on_formula": 0,
 	"depends_on_payment_days": 0,
-	"round_to_the_nearest_integer": 1,
-	"remove_if_zero_valued": 1,
-	"statistical_component": 0,
-	"variable_based_on_taxable_salary": 0,  # critical — keeps HRMS's slab engine off
-	"is_income_tax_component": 0,
-	"exempted_from_income_tax": 0,
 	"is_tax_applicable": 0,
-	"do_not_include_in_total": 0,
-	"do_not_include_in_accounts": 0,
 }
 
+# HRMS's native Employer Contribution type: shown in the slip's own section, posted by
+# Payroll Entry as expense against its own liability account (not Payroll Payable).
 _ENGINE_EMPLOYER_FLAGS = {
+	**_NEUTRAL_FLAGS,
 	"amount_based_on_formula": 0,
 	"depends_on_payment_days": 0,
-	"statistical_component": 0,
-	"do_not_include_in_total": 1,
-	"do_not_include_in_accounts": 0,
 	"is_tax_applicable": 0,
-	"round_to_the_nearest_integer": 1,
-	"remove_if_zero_valued": 1,
-	"variable_based_on_taxable_salary": 0,
-	"is_income_tax_component": 0,
-	"exempted_from_income_tax": 0,
-	"deduct_full_tax_on_selected_payroll_date": 0,
 	"royce_nssf_pensionable": 0,
 	"royce_shif_applicable": 0,
 	"royce_ahl_applicable": 0,
@@ -223,68 +253,92 @@ _ENGINE_EMPLOYER_FLAGS = {
 }
 
 
+def _spec(name, abbr, type_, flags, formula="", p9a="", p10a="", account=None, liability=None, owned=False):
+	return {
+		"salary_component": name,
+		"abbr": abbr,
+		"type": type_,
+		"formula": formula,
+		"p9a": p9a,
+		"p10a": p10a,
+		"flags": flags,
+		"account": account,
+		"liability": liability,
+		"owned": owned,
+	}
+
+
 def component_specs(rates=None):
-	"""The 11 Salary Components Kenya Payroll owns: three earnings with formulas and the
-	eight statutory components the engine fills. `rates` is accepted for backward
-	compatibility; nothing here depends on it any more (the engine reads the rates in
-	force for each slip's own period).
+	"""Every Salary Component Kenya Payroll sets up: the eight it owns and the seeded pay
+	components and catalogue. `rates` is accepted for backward compatibility; nothing
+	here depends on it (the engine reads the rates in force for each slip's period).
 
-	Returns a list of dicts, each with everything needed to create or update one
-	Salary Component and its matching Salary Structure row.
-	"""
+	`account` is the expense or payable account (unsuffixed; " - {abbr}" is appended per
+	company); `liability` is an Employer Contribution's liability account."""
+	salary, deductions_payable = "Salary Expense", "Employee Deductions Payable"
 
-	def engine(name, abbr, type_, p9a="", p10a="", flags=None):
-		return {
-			"salary_component": name,
-			"abbr": abbr,
-			"type": type_,
-			"formula": "",
-			"p9a": p9a,
-			"p10a": p10a,
-			"flags": flags or _ENGINE_DEDUCTION_FLAGS,
-		}
+	def earn(name, abbr, flags, p10a, formula="", p9a="Total Gross Pay"):
+		return _spec(name, abbr, "Earning", flags, formula, p9a, p10a, account=salary)
+
+	def ded(name, abbr, kind="", account=deductions_payable):
+		return _spec(name, abbr, "Deduction", {**_DEDUCTION_FLAGS, "royce_kenya_deduction_type": kind},
+			account=account)
+
+	def owned(name, abbr, p9a, p10a, account, flags=_ENGINE_DEDUCTION_FLAGS):
+		return _spec(name, abbr, "Deduction", flags, "", p9a, p10a, account=account, owned=True)
+
+	def employer(name, abbr, expense, liability):
+		return _spec(name, abbr, "Employer Contribution", _ENGINE_EMPLOYER_FLAGS,
+			account=expense, liability=liability, owned=True)
 
 	return [
-		{
-			"salary_component": "Basic Salary",
-			"abbr": "Basic",
-			"type": "Earning",
-			"formula": "base",
-			"p9a": "Basic Salary",
-			"p10a": "Basic Salary",
-			"flags": _REAL_EARNING_FLAGS,
-		},
-		{
-			"salary_component": "House Allowance",
-			"abbr": "House",
-			"type": "Earning",
-			"formula": "base * 0.15",
-			"p9a": "Total Gross Pay",
-			"p10a": "Housing Allowance",
-			"flags": _REAL_EARNING_FLAGS,
-		},
-		{
-			"salary_component": "Transport Allowance",
-			"abbr": "Transport",
-			"type": "Earning",
-			"formula": "base * 0.10",
-			"p9a": "Total Gross Pay",
-			"p10a": "Transport Allowance",
-			"flags": _REAL_EARNING_FLAGS,
-		},
-		engine("NSSF Tier I - Employee", "NSSF_T1", "Deduction",
-			"E1 Defined Contribution Retirement Scheme", "Actual Contribution"),
-		engine("NSSF Tier II - Employee", "NSSF_T2", "Deduction",
-			"E1 Defined Contribution Retirement Scheme", "Actual Contribution"),
-		engine("SHIF", "SHIF", "Deduction", "SHIF", "SHIF"),
-		engine("Housing Levy", "AHL", "Deduction", "Housing Levy", "Affordable Housing Levy"),
+		# Pay on the structure. Allowances are per employee, entered on the Salary
+		# Structure Assignment (royce_*_allowance), not a fixed share of basic.
+		earn("Basic Salary", "Basic", _MONTHLY_PAY_FLAGS, "Basic Salary", "base", p9a="Basic Salary"),
+		earn("House Allowance", "House", _MONTHLY_PAY_FLAGS, "Housing Allowance", "royce_house_allowance"),
+		earn("Transport Allowance", "Transport", _MONTHLY_PAY_FLAGS, "Transport Allowance",
+			"royce_transport_allowance"),
+		earn("Other Allowance", "OtherAllowance", _MONTHLY_PAY_FLAGS, "Other Allowance", "royce_other_allowance"),
+		# Pay entered per month (Additional Salary).
+		earn("Overtime", "Overtime", _VARIABLE_PAY_FLAGS, "Overtime"),
+		earn("Bonus", "Bonus", _VARIABLE_PAY_FLAGS, "Other Allowance"),
+		earn("Commission", "Commission", _VARIABLE_PAY_FLAGS, "Other Allowance"),
+		earn("Leave Pay", "LeavePay", _VARIABLE_PAY_FLAGS, "Leave Pay"),
+		earn("Acting Allowance", "Acting", _VARIABLE_PAY_FLAGS, "Other Allowance"),
+		earn("Salary Arrears", "SalaryArrears", _VARIABLE_PAY_FLAGS, "Other Allowance"),
+		earn("Meals Allowance", "Meals", {**_VARIABLE_PAY_FLAGS, "royce_tax_free_allowance": "Meals"},
+			"Other Allowance"),
+		earn("Expense Reimbursement", "Reimbursement", _REIMBURSEMENT_FLAGS, ""),
+		earn("Car Benefit", "CarBenefit", _NON_CASH_FLAGS, "Value of Car Benefit", p9a="Benefits NonCash"),
+		earn("Housing Benefit", "HousingBenefit", _NON_CASH_FLAGS, "Other Non Cash Benefits",
+			p9a="Value of Quarters"),
+		# Deductions entered per employee (Additional Salary, recurring where needed).
+		ded("Pension Contribution", "Pension", "Pension Contribution"),
+		ded("Post-Retirement Medical Fund", "PRMF", "Post-Retirement Medical Fund"),
+		ded("Insurance Premium", "InsurancePremium", "Insurance Premium"),
+		ded("HELB Repayment", "HELB"),
+		ded("SACCO Contribution", "SACCO"),
+		ded("Staff Welfare", "Welfare"),
+		ded("Union Dues", "UnionDues"),
+		ded("Staff Loan Repayment", "StaffLoan", account="Staff Loans"),
+		# Owned: filled by the engine.
+		owned("NSSF Tier I - Employee", "NSSF_T1", "E1 Defined Contribution Retirement Scheme",
+			"Actual Contribution", "NSSF Payable"),
+		owned("NSSF Tier II - Employee", "NSSF_T2", "E1 Defined Contribution Retirement Scheme",
+			"Actual Contribution", "NSSF Payable"),
+		owned("SHIF", "SHIF", "SHIF", "SHIF", "SHIF Payable"),
+		owned("Housing Levy", "AHL", "Housing Levy", "Affordable Housing Levy", "Housing Levy Payable"),
 		# Is Income Tax Component: HRMS's income-tax reports find PAYE by this flag.
-		engine("PAYE", "PAYE", "Deduction", "PAYE Tax", "PAYE Tax",
+		owned("PAYE", "PAYE", "PAYE Tax", "PAYE Tax", "PAYE Payable",
 			flags={**_ENGINE_DEDUCTION_FLAGS, "is_income_tax_component": 1}),
-		engine("NSSF Employer", "NSSF_ER", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
-		engine("Housing Levy Employer", "AHL_ER", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
-		engine("NITA", "NITA", "Earning", flags=_ENGINE_EMPLOYER_FLAGS),
+		employer("NSSF Employer", "NSSF_ER", "NSSF Employer Expense", "NSSF Payable"),
+		employer("Housing Levy Employer", "AHL_ER", "AHL Employer Expense", "Housing Levy Payable"),
+		employer("NITA", "NITA", "NITA Expense", "NITA Payable"),
 	]
+
+
+def _specs_by_name():
+	return {spec["salary_component"]: spec for spec in component_specs()}
 
 
 def upsert_component(spec):
@@ -309,21 +363,37 @@ def upsert_component(spec):
 	return doc.name
 
 
-def ensure_components(rates):
+def ensure_components(rates=None):
+	"""Re-apply the owned components; create seeded ones only if they don't exist yet.
+	A seeded component the client has edited (or deleted and replaced) is left alone."""
 	for spec in component_specs(rates):
-		upsert_component(spec)
+		if spec["owned"] or not frappe.db.exists("Salary Component", spec["salary_component"]):
+			upsert_component(spec)
 
 
 def map_accounts(company):
-	"""Add a (company, account) row to every component that needs one — guide section 6.9."""
+	"""Give every component an Accounts row for `company` — guide section 6.9. An existing
+	row is kept as the client set it; only an Employer Contribution's missing liability
+	account is filled in. A component whose account doesn't exist in this company's
+	chart (e.g. no "Loans and Advances (Assets)" group for Staff Loans) is skipped."""
 	abbr = frappe.db.get_value("Company", company, "abbr")
 
-	for component, account in ACCOUNT_MAP.items():
-		doc = frappe.get_doc("Salary Component", component)
-		already_mapped = any(row.company == company for row in doc.accounts)
-		if already_mapped:
+	for spec in component_specs():
+		if not spec["account"] or not frappe.db.exists("Salary Component", spec["salary_component"]):
 			continue
-		doc.append("accounts", {"company": company, "account": f"{account} - {abbr}"})
+		account = f"{spec['account']} - {abbr}"
+		liability = f"{spec['liability']} - {abbr}" if spec["liability"] else None
+		if not frappe.db.exists("Account", account) or (liability and not frappe.db.exists("Account", liability)):
+			continue
+
+		doc = frappe.get_doc("Salary Component", spec["salary_component"])
+		row = next((r for r in doc.accounts if r.company == company), None)
+		if row and (not liability or row.get("liability_account")):
+			continue
+		if not row:
+			row = doc.append("accounts", {"company": company, "account": account})
+		if liability:
+			row.liability_account = liability
 		doc.save(ignore_permissions=True)
 
 
@@ -422,13 +492,14 @@ def ensure_salary_structure(company, rates=None):
 	doc.salary_slip_based_on_timesheet = 0
 	doc.royce_kenya_statutory = 1
 
-	for component in EARNINGS_ORDER:
-		row = doc.append("earnings", {})
-		_fill_structure_row(row, component)
-
-	for component in DEDUCTIONS_ORDER:
-		row = doc.append("deductions", {})
-		_fill_structure_row(row, component)
+	for parentfield, components in (
+		("earnings", EARNINGS_ORDER),
+		("deductions", DEDUCTIONS_ORDER),
+		("employer_contributions", EMPLOYER_ORDER),
+	):
+		for component in components:
+			row = doc.append(parentfield, {})
+			_fill_structure_row(row, component)
 
 	doc.insert(ignore_permissions=True)
 	doc.submit()
@@ -441,11 +512,15 @@ def _fill_structure_row(row, component_name):
 	flag the master does (no round-to-integer / is-income-tax-component fields on the
 	row, for instance) — those are read from the master directly at calculation time."""
 	master = frappe.get_cached_doc("Salary Component", component_name)
+	# The formula comes from Kenya Payroll's spec, not the master: a seeded master is
+	# never overwritten, so on a site set up before v16.5.0 House Allowance's master can
+	# still say "base * 0.15".
+	spec = _specs_by_name().get(component_name)
 	row.salary_component = component_name
 	row.abbr = master.salary_component_abbr
 	row.condition = master.condition
-	row.amount_based_on_formula = master.amount_based_on_formula
-	row.formula = master.formula
+	row.amount_based_on_formula = 1 if spec and spec["formula"] else master.amount_based_on_formula
+	row.formula = spec["formula"] if spec and spec["formula"] else master.formula
 	row.statistical_component = master.statistical_component
 	row.is_tax_applicable = master.is_tax_applicable
 	row.variable_based_on_taxable_salary = master.variable_based_on_taxable_salary
@@ -774,9 +849,9 @@ def provision(company, rates=None):
 
 @frappe.whitelist()
 def regenerate(rates=None):
-	"""Re-apply Kenya Payroll's own component definitions and account mappings to every
-	provisioned company. Only the components listed in component_specs() are touched;
-	a client's own components never are.
+	"""Re-apply Kenya Payroll's own (owned) component definitions, create any missing
+	catalogue component, and complete account mappings for every provisioned company.
+	A seeded component that already exists is never changed, nor is a client's own.
 
 	A Finance Act rate change does NOT need this any more: submit a new Kenya Payroll
 	Rates record with its Effective From date and every slip for a period on or after
@@ -787,6 +862,7 @@ def regenerate(rates=None):
 
 	structures = {}
 	for company in _provisioned_companies():
+		ensure_accounts(company)
 		map_accounts(company)
 		ensure_income_tax_slab_placeholder(company, rates_doc)
 		structures[company] = kenya_structure(company)
@@ -818,7 +894,9 @@ def verify(company, rates=None):
 	if get_region() != "Kenya":
 		problems.append(_("The site's country (System Settings) is not Kenya, so the statutory engine won't run."))
 
-	specs = component_specs(rates_doc)
+	# What payroll can't run without: the owned components, and Basic Salary with a
+	# formula. Catalogue components are the client's to keep, rename or delete.
+	specs = [s for s in component_specs(rates_doc) if s["owned"] or s["salary_component"] == "Basic Salary"]
 	for spec in specs:
 		name = spec["salary_component"]
 		if not frappe.db.exists("Salary Component", name):
@@ -826,6 +904,8 @@ def verify(company, rates=None):
 			continue
 		if spec["formula"] and not frappe.db.get_value("Salary Component", name, "formula"):
 			problems.append(_("Salary Component {0} has no formula.").format(name))
+		if spec["owned"] and frappe.db.get_value("Salary Component", name, "type") != spec["type"]:
+			problems.append(_("Salary Component {0} should be of type {1}.").format(name, spec["type"]))
 
 	abbr = frappe.db.get_value("Company", company, "abbr")
 	if not abbr:
@@ -850,8 +930,13 @@ def verify(company, rates=None):
 		problems.append(_("{0} has no active Kenya Payroll Salary Structure.").format(company))
 	else:
 		structure = frappe.get_doc("Salary Structure", structure_name)
-		present = {d.salary_component for d in structure.earnings + structure.deductions}
-		missing = [c for c in EARNINGS_ORDER + DEDUCTIONS_ORDER if c not in present]
+		present = {
+			d.salary_component
+			for d in structure.earnings + structure.deductions + (structure.get("employer_contributions") or [])
+		}
+		# Structures from before v16.5.0 have no Other Allowance and carry the employer
+		# contributions as earnings; both still work, so only these are required.
+		missing = [c for c in ["Basic Salary", *DEDUCTIONS_ORDER, *EMPLOYER_ORDER] if c not in present]
 		if missing:
 			problems.append(
 				_("{0} is missing the rows: {1}.").format(structure_name, ", ".join(missing))

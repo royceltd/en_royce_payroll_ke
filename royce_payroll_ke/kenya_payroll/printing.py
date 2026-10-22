@@ -57,8 +57,18 @@ def set_default_print_format() -> bool:
 
 
 def kenya_payslip_context(doc) -> frappe._dict:
-	pay = [r for r in doc.get("earnings") or [] if not r.statistical_component and not r.do_not_include_in_total]
-	employer = [r for r in doc.get("earnings") or [] if not r.statistical_component and r.do_not_include_in_total]
+	from royce_payroll_ke.kenya_payroll.engine import EMPLOYER_EARNINGS
+
+	earnings = [r for r in doc.get("earnings") or [] if not r.statistical_component]
+	pay = [r for r in earnings if not r.do_not_include_in_total]
+	# Employer contributions: HRMS's own section since v16.5.0; slips from before that
+	# carried them as earnings left out of the total.
+	employer = [r for r in doc.get("employer_contributions") or [] if flt(r.amount)] + [
+		r for r in earnings if r.do_not_include_in_total and r.salary_component in EMPLOYER_EARNINGS
+	]
+	benefits = [
+		r for r in earnings if r.do_not_include_in_total and r.salary_component not in EMPLOYER_EARNINGS
+	]
 	deductions = [r for r in doc.get("deductions") or [] if not r.statistical_component and not r.do_not_include_in_total]
 	return frappe._dict(
 		accent=_accent(doc.company),
@@ -71,6 +81,7 @@ def kenya_payslip_context(doc) -> frappe._dict:
 		deductions=deductions,
 		employer=employer,
 		employer_total=sum(flt(r.amount) for r in employer),
+		benefits=benefits,
 		tax=tax_summary(doc, deductions),
 	)
 
@@ -100,7 +111,9 @@ def tax_summary(doc, deductions) -> frappe._dict | None:
 	if doc.get("royce_kenya_payroll_rates"):
 		return _engine_tax_summary(doc, deductions)
 
-	from royce_payroll_ke.kenya_payroll.doctype.kenya_payroll_rates.kenya_payroll_rates import KenyaPayrollRates
+	from royce_payroll_ke.kenya_payroll.doctype.kenya_payroll_rates.kenya_payroll_rates import (
+		KenyaPayrollRates,
+	)
 
 	rates_name = KenyaPayrollRates.get_effective(doc.start_date)
 	paye = sum(flt(r.amount) for r in deductions if r.abbr == "PAYE")

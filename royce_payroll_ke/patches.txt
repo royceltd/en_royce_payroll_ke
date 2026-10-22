@@ -5,3 +5,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 royce_payroll_ke.patches.v16_4_kenya_statutory_engine
+royce_payroll_ke.patches.v16_5_component_catalogue

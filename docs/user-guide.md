@@ -220,6 +220,23 @@ each Salary Component and the employee's Kenya Tax details. Nothing is hard-code
 - **Insurance Premium**: gives insurance relief (15%, up to KES 5,000 a month).
 - Blank: an ordinary after-tax deduction (loans, SACCO, HELB, welfare).
 
+**Allowances per employee (v16.5.0+):** House, Transport and Other Allowance are monthly
+amounts on each employee's **Salary Structure Assignment**, next to Base, not a fixed share of
+basic. Leave them at 0 for a consolidated salary. A change of allowance is a new assignment with a
+From Date, like a pay rise. Structures set up before v16.5.0 keep their old 15% / 10% formulas
+until you move employees to a new structure.
+
+**Pay that changes month to month** (overtime, bonus, commission, leave pay, acting allowance,
+arrears, meals, reimbursements, car or housing benefit) and **deductions** (pension, medical fund,
+insurance premium, HELB, SACCO, welfare, union dues, staff loan) go in through **Additional
+Salary**, ticking *Is Recurring* with From/To dates for a standing monthly deduction. Kenya Payroll
+creates all of these components with the right tax flags and accounts; you can edit them, and
+upgrades never overwrite your edits (only the eight statutory components are Kenya Payroll's).
+
+**Employer contributions** (NSSF, Housing Levy, NITA) appear in the slip's Employer Contributions
+section and post to their own expense and liability accounts (NSSF / Housing Levy / NITA Payable)
+in a separate journal entry when the Payroll Entry is submitted.
+
 **Employee** (Kenya Tax section): tax category (Primary or Secondary Employment), mortgage interest
 and insurance premiums the employee pays directly (monthly, from the lender's or insurer's
 certificate), and a disability exemption with its certificate number and expiry date.

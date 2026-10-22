@@ -152,6 +152,16 @@
       </table>
       <div class="kx-muted kx-small" style="margin-top: 4px;">{{ _("Employer contributions are not deducted from your pay.") }}</div>
       {% endif %}
+      {% if ctx.benefits %}
+      <table class="kx-lines" style="margin-top: 8px;">
+        <thead><tr><th>{{ _("Benefits in kind (not paid in cash)") }}</th><th class="kx-num">{{ doc.currency }}</th></tr></thead>
+        <tbody>
+        {% for row in ctx.benefits %}
+          <tr><td>{{ _(row.salary_component) }}</td><td class="kx-num">{{ money(row.amount) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
     </td>
   </tr></table>
 
