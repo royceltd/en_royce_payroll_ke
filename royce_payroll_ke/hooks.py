@@ -180,12 +180,17 @@ doc_events = {
 # Payroll guards (kenya_payroll/payroll_guards.py): a Payroll Entry's slips can only be
 # submitted from its "Submit Salary Slip" button (the only path that posts the accrual
 # Journal Entry), and a warning when the Posting Date is outside the pay period.
-doc_events["Salary Slip"]["before_submit"] = (
-	"royce_payroll_ke.kenya_payroll.payroll_guards.block_slip_submit_outside_payroll_entry"
-)
-doc_events["Payroll Entry"]["validate"] = (
-	"royce_payroll_ke.kenya_payroll.payroll_guards.warn_posting_date_outside_period"
-)
+doc_events["Salary Slip"]["before_submit"] = [
+	"royce_payroll_ke.kenya_payroll.payroll_guards.block_slip_submit_outside_payroll_entry",
+	"royce_payroll_ke.kenya_payroll.compliance.block_slip_problems",
+]
+doc_events["Payroll Entry"]["validate"] = [
+	"royce_payroll_ke.kenya_payroll.payroll_guards.warn_posting_date_outside_period",
+	"royce_payroll_ke.kenya_payroll.compliance.warn_payroll_entry_problems",
+]
+# Payroll checks (kenya_payroll/compliance.py): one-third rule, KRA PIN, ID/NSSF/SHA numbers,
+# bank details. Block/Warn/Off per check in Kenya Payroll Settings.
+doc_events["Salary Slip"]["validate"] = "royce_payroll_ke.kenya_payroll.compliance.warn_slip_problems"
 doc_events["Salary Component"] = {
 	"validate": "royce_payroll_ke.kenya_payroll.engine.validate_salary_component"
 }

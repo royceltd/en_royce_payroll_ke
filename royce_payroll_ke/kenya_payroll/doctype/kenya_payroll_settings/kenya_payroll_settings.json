@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "creation": "2026-10-22 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "checks_section",
+  "checks_intro",
+  "one_third_rule",
+  "missing_kra_pin",
+  "column_break_checks",
+  "missing_statutory_numbers",
+  "missing_bank_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "checks_section",
+   "fieldtype": "Section Break",
+   "label": "Payroll Checks"
+  },
+  {
+   "fieldname": "checks_intro",
+   "fieldtype": "HTML",
+   "options": "<p class=\"text-muted\">What happens when a salary slip breaks a rule. <b>Block</b>: the slip can't be submitted until it's fixed (the rest of the payroll run goes through). <b>Warn</b>: a warning on the Payroll Entry and the slip. <b>Off</b>: no check.</p>"
+  },
+  {
+   "default": "Block",
+   "description": "Employment Act 2007, s.19(3): total deductions may not exceed two-thirds of the employee's wages. Counts every deduction and loan repayment against gross pay.",
+   "fieldname": "one_third_rule",
+   "fieldtype": "Select",
+   "label": "Deductions Above Two-Thirds of Pay",
+   "options": "Block\nWarn\nOff",
+   "reqd": 1
+  },
+  {
+   "default": "Block",
+   "description": "KRA's PAYE return lists every employee by KRA PIN (format: letter, 9 digits, letter).",
+   "fieldname": "missing_kra_pin",
+   "fieldtype": "Select",
+   "label": "Missing or Invalid KRA PIN",
+   "options": "Block\nWarn\nOff",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_checks",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Warn",
+   "description": "National ID, NSSF and SHA numbers, needed for the NSSF, SHA and KRA returns.",
+   "fieldname": "missing_statutory_numbers",
+   "fieldtype": "Select",
+   "label": "Missing ID, NSSF or SHA Number",
+   "options": "Block\nWarn\nOff",
+   "reqd": 1
+  },
+  {
+   "default": "Warn",
+   "description": "Only for employees paid by bank (Salary Mode: Bank).",
+   "fieldname": "missing_bank_details",
+   "fieldtype": "Select",
+   "label": "Missing Bank Details",
+   "options": "Block\nWarn\nOff",
+   "reqd": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-22 17:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kenya Payroll",
+ "name": "Kenya Payroll Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "read": 1, "role": "System Manager", "write": 1},
+  {"create": 1, "read": 1, "role": "HR Manager", "write": 1},
+  {"read": 1, "role": "HR User"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

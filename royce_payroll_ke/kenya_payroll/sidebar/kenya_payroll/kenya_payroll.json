@@ -51,6 +51,22 @@
    "type": "Link"
   },
   {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Payroll Settings",
+   "link_to": "Kenya Payroll Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link",
+   "doctype": "Sidebar Item",
+   "parentfield": "items",
+   "parenttype": "Sidebar",
+   "idx": 4
+  },
+  {
    "child": 0,
    "collapsible": 1,
    "indent": 1,
@@ -63,7 +79,7 @@
    "doctype": "Sidebar Item",
    "parentfield": "items",
    "parenttype": "Sidebar",
-   "idx": 4
+   "idx": 5
   },
   {
    "child": 1,
@@ -79,7 +95,7 @@
    "doctype": "Sidebar Item",
    "parentfield": "items",
    "parenttype": "Sidebar",
-   "idx": 5
+   "idx": 6
   },
   {
    "child": 1,
@@ -95,14 +111,14 @@
    "doctype": "Sidebar Item",
    "parentfield": "items",
    "parenttype": "Sidebar",
-   "idx": 6
+   "idx": 7
   },
   {
    "child": 0,
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "notepad-text",
-   "idx": 7,
+   "idx": 8,
    "indent": 1,
    "keep_closed": 1,
    "label": "Statutory Reports",
@@ -117,7 +133,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 8,
+   "idx": 9,
    "indent": 0,
    "keep_closed": 0,
    "label": "P9A Tax Deduction Card",
@@ -133,7 +149,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 9,
+   "idx": 10,
    "indent": 0,
    "keep_closed": 0,
    "label": "P10A Monthly Return",
@@ -149,7 +165,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 10,
+   "idx": 11,
    "indent": 0,
    "keep_closed": 0,
    "label": "NSSF Contributions",
@@ -165,7 +181,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 11,
+   "idx": 12,
    "indent": 0,
    "keep_closed": 0,
    "label": "SHIF Contributions",
@@ -181,7 +197,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 12,
+   "idx": 13,
    "indent": 0,
    "keep_closed": 0,
    "label": "Housing Levy Contributions",
@@ -197,7 +213,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 13,
+   "idx": 14,
    "indent": 0,
    "keep_closed": 0,
    "label": "NITA Contributions",
@@ -213,7 +229,7 @@
    "collapsible": 1,
    "doctype": "Sidebar Item",
    "icon": "",
-   "idx": 14,
+   "idx": 15,
    "indent": 0,
    "keep_closed": 0,
    "label": "Bank Payroll Advice",
@@ -229,5 +245,5 @@
  "name": "Kenya Payroll",
  "standard": 1,
  "title": "Kenya Payroll",
- "modified": "2026-10-22 16:00:00.000000"
+ "modified": "2026-10-22 17:00:00.000000"
 }

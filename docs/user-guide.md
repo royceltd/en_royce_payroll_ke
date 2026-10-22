@@ -264,6 +264,24 @@ accountant or the auditor. It shows submitted slips unless you tick *Include Dra
 
 ---
 
+## 7D. Payroll checks (Kenya Payroll Settings)
+
+Kenya Payroll checks every salary slip before it is submitted:
+
+| Check | Default | Why |
+|---|---|---|
+| Deductions above two-thirds of gross pay (loan repayments included) | Block | Employment Act 2007, s.19(3) |
+| Missing or badly formatted KRA PIN (letter, 9 digits, letter) | Block | KRA's PAYE return lists employees by PIN |
+| Missing ID, NSSF or SHA number | Warn | Needed for the NSSF, SHA and KRA returns |
+| Missing bank account number when Salary Mode is Bank | Warn | The payment would fail |
+
+When you save a Payroll Entry you get one list of every employee with missing details. When the
+Payroll Entry submits its slips, a slip that fails a **Block** check stays in draft (the rest go
+through) and is listed as not submitted; fix it and submit again. Change any check to Block,
+Warn or Off in **Kenya Payroll Settings** (Kenya Payroll → Setup).
+
+---
+
 ## 7A. Running the statutory reports
 
 Seven reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF

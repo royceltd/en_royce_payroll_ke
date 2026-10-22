@@ -176,6 +176,12 @@ def make_test_employee(user_id, company, **kwargs):
 			"date_of_birth": "1950-01-01",
 			"date_of_joining": "2010-01-01",
 			"status": "Active",
+			# Valid statutory details, so the payroll checks (compliance.py) pass by default;
+			# tests of those checks blank them out.
+			"royce_kra_pin": "A123456789B",
+			"royce_national_id": "12345678",
+			"royce_nssf_no": "2001234567",
+			"royce_shif_no": "SHA1234567",
 			**kwargs,
 		}
 	)
