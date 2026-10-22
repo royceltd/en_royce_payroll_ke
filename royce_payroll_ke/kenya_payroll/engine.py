@@ -260,6 +260,7 @@ def apply_kenya_statutory(slip):
 	site's other structures keep HRMS's default behaviour."""
 	if not is_kenya_structure(slip.salary_structure):
 		return
+	_require_monthly(slip.payroll_frequency, slip.salary_structure)
 
 	from royce_payroll_ke.kenya_payroll.doctype.kenya_payroll_rates.kenya_payroll_rates import (
 		KenyaPayrollRates,
@@ -301,6 +302,28 @@ def apply_kenya_statutory(slip):
 			slip.set(fieldname, getattr(result, attr))
 	if meta.has_field("royce_kenya_payroll_rates"):
 		slip.royce_kenya_payroll_rates = rates_name
+
+
+def _require_monthly(payroll_frequency, salary_structure):
+	"""Every band, relief, limit and minimum in Kenya Payroll Rates is monthly, and KRA
+	taxes weekly or daily pay on the month's total (PAYE guide, "Irregularly paid
+	employees"). A weekly slip run through the monthly figures would be taxed wrongly
+	without any error, so it's refused. Casual workers are paid monthly on the Kenya
+	Casual Wages structure."""
+	if payroll_frequency == "Monthly":
+		return
+	frappe.throw(
+		_("{0} is a Kenya Payroll structure, so its Payroll Frequency must be Monthly, not {1}. PAYE, NSSF, SHIF and Housing Levy are worked out on a month's pay. For casual workers paid by the day, use the Kenya Casual Wages structure and pay them monthly.").format(
+			frappe.bold(salary_structure), frappe.bold(payroll_frequency or _("blank"))
+		),
+		title=_("Kenya Payroll is monthly"),
+	)
+
+
+def validate_salary_structure(doc, method=None):
+	"""Salary Structure validate."""
+	if doc.get("royce_kenya_statutory"):
+		_require_monthly(doc.payroll_frequency, doc.name)
 
 
 def validate_salary_component(doc, method=None):

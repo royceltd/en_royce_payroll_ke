@@ -134,6 +134,12 @@ def ensure_accounts(company):
 #            they're the client's: never overwritten, so a client's edits survive every
 #            upgrade and every regenerate().
 
+# The casual structure's one pay row: daily rate (the assignment's Base) x the Days
+# Worked entered on the slip. Paid monthly, so the engine's monthly bands and limits
+# are right as they are (casuals paid weekly are not supported: docs/research-2026-10-22.md
+# §5).
+CASUAL_EARNINGS_ORDER = ["Casual Wages"]
+
 # Row order of a new Salary Structure. The engine doesn't depend on row order; this is
 # just what reads best on the structure and the slip.
 EARNINGS_ORDER = [
@@ -199,6 +205,10 @@ _MONTHLY_PAY_FLAGS = {
 	"royce_non_cash_benefit": 0,
 	"royce_tax_free_allowance": "",
 }
+
+# Casual wages: the days worked are the measure of the month's pay, so no payment-days
+# proration on top.
+_CASUAL_PAY_FLAGS = {**_MONTHLY_PAY_FLAGS, "depends_on_payment_days": 0}
 
 # Pay entered per month through Additional Salary (overtime, bonus...): the amount is
 # what was earned, so it's never pro-rated.
@@ -299,6 +309,9 @@ def component_specs(rates=None):
 		earn("Transport Allowance", "Transport", _MONTHLY_PAY_FLAGS, "Transport Allowance",
 			"royce_transport_allowance"),
 		earn("Other Allowance", "OtherAllowance", _MONTHLY_PAY_FLAGS, "Other Allowance", "royce_other_allowance"),
+		# The casual structure's pay. `or 0`: a slip made before days are entered.
+		earn("Casual Wages", "CasualWages", _CASUAL_PAY_FLAGS, "Basic Salary", "base * (royce_days_worked or 0)",
+			p9a="Basic Salary"),
 		# Pay entered per month (Additional Salary).
 		earn("Overtime", "Overtime", _VARIABLE_PAY_FLAGS, "Overtime"),
 		earn("Bonus", "Bonus", _VARIABLE_PAY_FLAGS, "Other Allowance"),
@@ -460,13 +473,26 @@ def ensure_payroll_period(company, rates):
 	return doc.name
 
 
-def kenya_structure(company):
-	"""The company's active Kenya Payroll structure, newest first, or None."""
+def kenya_structure(company, casual=False):
+	"""The company's active Kenya Payroll structure (or its casual one), newest first,
+	or None."""
 	return frappe.db.get_value(
 		"Salary Structure",
-		{"company": company, "royce_kenya_statutory": 1, "docstatus": 1, "is_active": "Yes"},
+		{
+			"company": company,
+			"royce_kenya_statutory": 1,
+			"royce_casual_wages": 1 if casual else 0,
+			"docstatus": 1,
+			"is_active": "Yes",
+		},
 		"name",
 		order_by="creation desc",
+	)
+
+
+def is_casual_structure(salary_structure) -> bool:
+	return bool(
+		salary_structure and frappe.get_cached_value("Salary Structure", salary_structure, "royce_casual_wages")
 	)
 
 
@@ -481,19 +507,34 @@ def ensure_salary_structure(company, rates=None):
 	existing = kenya_structure(company)
 	if existing:
 		return existing
+	return _make_structure(company, "Kenya Payroll", EARNINGS_ORDER)
 
+
+def ensure_casual_structure(company):
+	"""One Kenya Casual Wages structure per company, for casual workers paid monthly on
+	a daily rate: Base on the assignment is the daily rate, Days Worked is entered on
+	each slip. Same statutory rows as the main structure."""
+	existing = kenya_structure(company, casual=True)
+	if existing:
+		return existing
+	return _make_structure(company, "Kenya Casual Wages", CASUAL_EARNINGS_ORDER, casual=True)
+
+
+def _make_structure(company, title, earnings, casual=False):
 	abbr = frappe.db.get_value("Company", company, "abbr")
 	doc = frappe.new_doc("Salary Structure")
-	doc.name = f"{abbr} Kenya Payroll"
+	doc.name = f"{abbr} {title}"
 	doc.company = company
 	doc.currency = "KES"
 	doc.is_active = "Yes"
+	# Monthly only: the engine applies monthly bands and limits (validate_salary_structure).
 	doc.payroll_frequency = "Monthly"
 	doc.salary_slip_based_on_timesheet = 0
 	doc.royce_kenya_statutory = 1
+	doc.royce_casual_wages = 1 if casual else 0
 
 	for parentfield, components in (
-		("earnings", EARNINGS_ORDER),
+		("earnings", earnings),
 		("deductions", DEDUCTIONS_ORDER),
 		("employer_contributions", EMPLOYER_ORDER),
 	):
@@ -813,7 +854,8 @@ def _require_kenya_region():
 @frappe.whitelist()
 def provision(company, rates=None):
 	"""Full setup for a company: accounts, Kenya Payroll's components, the Income Tax Slab
-	placeholder, the Payroll Period, and the Salary Structure. Safe to re-run."""
+	placeholder, the Payroll Period, and the two Salary Structures (monthly salary and
+	casual wages). Safe to re-run."""
 	_require_payroll_write_permission()
 	_require_kenya_region()
 	rates_doc = _get_rates_doc(rates)
@@ -824,6 +866,7 @@ def provision(company, rates=None):
 	slab = ensure_income_tax_slab_placeholder(company, rates_doc)
 	period = ensure_payroll_period(company, rates_doc)
 	structure = ensure_salary_structure(company, rates_doc)
+	casual_structure = ensure_casual_structure(company)
 
 	# Attendance/payroll need a Holiday List or every day is treated as a
 	# working day -- a wrong-payslip bug, not a crash, so it fails silently
@@ -844,6 +887,7 @@ def provision(company, rates=None):
 		"income_tax_slab": slab,
 		"payroll_period": period,
 		"salary_structure": structure,
+		"casual_structure": casual_structure,
 		"holiday_lists": holiday_lists,
 	}
 
@@ -851,7 +895,8 @@ def provision(company, rates=None):
 @frappe.whitelist()
 def regenerate(rates=None):
 	"""Re-apply Kenya Payroll's own (owned) component definitions, create any missing
-	catalogue component, and complete account mappings for every provisioned company.
+	catalogue component or casual wages structure, and complete account mappings for
+	every provisioned company.
 	A seeded component that already exists is never changed, nor is a client's own.
 
 	A Finance Act rate change does NOT need this any more: submit a new Kenya Payroll
@@ -866,6 +911,7 @@ def regenerate(rates=None):
 		ensure_accounts(company)
 		map_accounts(company)
 		ensure_income_tax_slab_placeholder(company, rates_doc)
+		ensure_casual_structure(company)
 		structures[company] = kenya_structure(company)
 
 	return {"rates": rates_doc.name, "structures": structures}
@@ -942,6 +988,9 @@ def verify(company, rates=None):
 			problems.append(
 				_("{0} is missing the rows: {1}.").format(structure_name, ", ".join(missing))
 			)
+
+	if not kenya_structure(company, casual=True):
+		problems.append(_("{0} has no active Kenya Casual Wages Salary Structure.").format(company))
 
 	if problems:
 		frappe.throw(_("Payroll provisioning verification failed for {0}:<br>{1}").format(

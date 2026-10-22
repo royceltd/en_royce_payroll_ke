@@ -8,8 +8,10 @@
   broken.
 - Statutory details: KRA's PAYE return lists employees by KRA PIN; the NSSF, SHA and KRA
   returns need the ID, NSSF and SHA numbers; a bank payment needs an account number.
+- Days worked (casual wages structure): pay is daily rate x days worked, so a slip with no
+  days, or more days than the period has, is a data-entry mistake. Always Block.
 
-Each check is Block, Warn or Off in Kenya Payroll Settings. They run on slips from a
+Each check except days worked is Block, Warn or Off in Kenya Payroll Settings. They run on slips from a
 Kenya Payroll structure only:
 - Payroll Entry (draft) validate: one list of every employee with missing details,
   before the slips are made.
@@ -22,9 +24,10 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import flt, fmt_money, get_link_to_form
+from frappe.utils import date_diff, flt, fmt_money, get_link_to_form
 
 from royce_payroll_ke.kenya_payroll.engine import is_kenya_structure
+from royce_payroll_ke.kenya_payroll.setup import is_casual_structure
 
 BLOCK, WARN, OFF = "Block", "Warn", "Off"
 DEFAULTS = {
@@ -34,11 +37,16 @@ DEFAULTS = {
 	"missing_bank_details": WARN,
 }
 
+# Not in Kenya Payroll Settings: there's no case for letting these through.
+FIXED = {"days_worked": BLOCK}
+
 # Letter, nine digits, letter (individuals' PINs start with A). Checked for shape only.
 KRA_PIN = re.compile(r"^[A-Z]\d{9}[A-Z]$")
 
 
 def level(check):
+	if check in FIXED:
+		return FIXED[check]
 	value = frappe.db.get_single_value("Kenya Payroll Settings", check)
 	return value or DEFAULTS[check]
 
@@ -93,9 +101,26 @@ def employee_problems(employee):
 	return [(check, message) for check, message in problems if level(check) != OFF]
 
 
+def days_worked_problem(days_worked, start_date, end_date):
+	"""The days-worked message for a casual wages slip, or None."""
+	days_worked = flt(days_worked)
+	if days_worked <= 0:
+		return _("no Days Worked entered (pay is the daily rate x days worked)")
+	period_days = date_diff(end_date, start_date) + 1 if start_date and end_date else None
+	if period_days and days_worked > period_days:
+		return _("Days Worked is {0}, more than the {1} days in the pay period").format(
+			frappe.format(days_worked, {"fieldtype": "Float"}), period_days
+		)
+	return None
+
+
 def slip_problems(slip):
 	"""[(check, message)] for one salary slip."""
 	problems = list(employee_problems(slip.employee)) if slip.employee else []
+	if is_casual_structure(slip.salary_structure):
+		message = days_worked_problem(slip.get("royce_days_worked"), slip.start_date, slip.end_date)
+		if message:
+			problems.append(("days_worked", message))
 	if level("one_third_rule") != OFF:
 		deductions = flt(slip.total_deduction) + flt(slip.get("total_loan_repayment"))
 		message = one_third_problem(slip.gross_pay, deductions)

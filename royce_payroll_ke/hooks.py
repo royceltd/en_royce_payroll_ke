@@ -194,6 +194,8 @@ doc_events["Salary Slip"]["validate"] = "royce_payroll_ke.kenya_payroll.complian
 doc_events["Salary Component"] = {
 	"validate": "royce_payroll_ke.kenya_payroll.engine.validate_salary_component"
 }
+# Kenya Payroll structures are Monthly only (the engine's bands and limits are monthly).
+doc_events["Salary Structure"]["validate"] = "royce_payroll_ke.kenya_payroll.engine.validate_salary_structure"
 
 # The Kenya statutory engine (kenya_payroll/engine.py): NSSF, SHIF, Housing Levy and
 # PAYE on slips from a Kenya Payroll structure, via HRMS's per-country hook point.

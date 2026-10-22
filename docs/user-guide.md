@@ -126,10 +126,11 @@ twice against the same company doesn't duplicate accounts, components, or the st
 | 5 statutory payable accounts | Chart of Accounts, under `Duties and Taxes - {ABBR}` | PAYE, NSSF, SHIF, Housing Levy, NITA Payable |
 | 4 expense accounts | Chart of Accounts, under `Indirect Expenses - {ABBR}` | Salary Expense + 3 employer-cost accounts |
 | `Payroll Payable - {ABBR}` | Chart of Accounts, under `Accounts Payable - {ABBR}` | Only created if missing — usually already exists |
-| 22 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
+| 31 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
 | `Kenya PAYE Placeholder {year}` | Income Tax Slab list | Empty, submitted — required by HRMS validation, never actually read |
 | A Payroll Period covering the calendar year | Payroll Period list | Skipped if one already covers that year for this company |
 | `{ABBR} Payroll Structure {rates version}` | Salary Structure list | Submitted, correct row order baked in — named after the exact Kenya Payroll Rates record, not just the year (see section 7) |
+| `{ABBR} Kenya Casual Wages` | Salary Structure list | For casual workers paid monthly on a daily rate (v16.6.0+, see section 7E) |
 
 ---
 
@@ -279,6 +280,40 @@ When you save a Payroll Entry you get one list of every employee with missing de
 Payroll Entry submits its slips, a slip that fails a **Block** check stays in draft (the rest go
 through) and is listed as not submitted; fix it and submit again. Change any check to Block,
 Warn or Off in **Kenya Payroll Settings** (Kenya Payroll → Setup).
+
+---
+
+## 7E. Casual workers (paid monthly on a daily rate)
+
+For workers on a daily rate who are paid at the end of the month (v16.6.0+). Every company
+set up for Kenya Payroll has a second structure, `{ABBR} Kenya Casual Wages`, with one pay
+row: **Casual Wages = daily rate × Days Worked**. NSSF, SHIF, Housing Levy, PAYE and the
+employer contributions are worked out exactly as for salaried staff, on the month's wages.
+
+1. **Assign the structure.** Salary Structure Assignment as in section 5, with Salary
+   Structure `{ABBR} Kenya Casual Wages` and **Base = the daily rate** (e.g. 1,500). Leave the
+   House/Transport/Other Allowance fields empty: this structure doesn't use them.
+2. **Run payroll as usual** (Payroll Entry → Create Salary Slips).
+3. **Enter the days.** Open each casual worker's draft slip, type **Days Worked** (next to
+   Payment Days) and save: the wages and every deduction are recalculated. For many workers,
+   use Data Import (Update Existing Records) on Salary Slip with the Days Worked column.
+4. **Submit** from the Payroll Entry. A casual slip with no Days Worked, or more days than the
+   month has, is not submitted (it stays in draft, listed on the Payroll Entry).
+
+Overtime and other one-off pay go through Additional Salary, the same as for salaried staff.
+
+**Worked example:** 1,500 a day × 20 days = 30,000. NSSF 540 + 1,260, SHIF 825, Housing Levy
+450, PAYE 731, net pay 26,194.
+
+**Kenya Payroll structures are Monthly only.** All the bands, reliefs, limits and minimums
+are monthly, and KRA taxes weekly or daily pay on the month's total. A Kenya Payroll structure
+set to Weekly, Fortnightly or Daily can't be saved, and its slips are refused. Weekly pay is
+not supported yet; see `docs/research-2026-10-22.md` §5.
+
+**Casual for a long time?** Under the Employment Act (s.37), a casual worker kept on
+continuously for more than a month, or doing work that adds up to three months or more, is
+treated as on a monthly contract. Kenya Payroll doesn't check this; review it with the
+employer.
 
 ---
 

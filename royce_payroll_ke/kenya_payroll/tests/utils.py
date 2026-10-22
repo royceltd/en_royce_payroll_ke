@@ -201,6 +201,8 @@ def make_test_payslip(
 	joining_date=None,
 	structure_name=None,
 	allowances=None,
+	slip_values=None,
+	submit=True,
 	**employee_kwargs,
 ):
 	"""Provision `company` off `rates` (if it isn't already), assign a test
@@ -223,6 +225,9 @@ def make_test_payslip(
 	{"royce_house_allowance": 9000}. By default House = 15% and Transport = 10% of base,
 	the split the generator hard-coded before v16.5.0, so every expected figure in this
 	suite (including the setup guide's worked example) still holds.
+
+	`slip_values` are set on the slip before it's saved (e.g. {"royce_days_worked": 20}).
+	`submit=False` returns the slip saved as a draft.
 	"""
 	joining_date = joining_date or period_start
 	# Idempotent; also makes sure the Income Tax Slab placeholder for this rates year exists.
@@ -312,6 +317,8 @@ def make_test_payslip(
 	assignment.submit()
 
 	slip = make_salary_slip(structure_name, employee=employee, posting_date=posting_date)
+	slip.update(slip_values or {})
 	slip.insert(ignore_permissions=True)
-	slip.submit()
+	if submit:
+		slip.submit()
 	return employee, slip
