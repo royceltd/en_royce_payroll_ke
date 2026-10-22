@@ -126,11 +126,12 @@ twice against the same company doesn't duplicate accounts, components, or the st
 | 5 statutory payable accounts | Chart of Accounts, under `Duties and Taxes - {ABBR}` | PAYE, NSSF, SHIF, Housing Levy, NITA Payable |
 | 4 expense accounts | Chart of Accounts, under `Indirect Expenses - {ABBR}` | Salary Expense + 3 employer-cost accounts |
 | `Payroll Payable - {ABBR}` | Chart of Accounts, under `Accounts Payable - {ABBR}` | Only created if missing — usually already exists |
-| 31 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
+| 34 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
 | `Kenya PAYE Placeholder {year}` | Income Tax Slab list | Empty, submitted — required by HRMS validation, never actually read |
 | A Payroll Period covering the calendar year | Payroll Period list | Skipped if one already covers that year for this company |
 | `{ABBR} Payroll Structure {rates version}` | Salary Structure list | Submitted, correct row order baked in — named after the exact Kenya Payroll Rates record, not just the year (see section 7) |
 | `{ABBR} Kenya Casual Wages` | Salary Structure list | For casual workers paid monthly on a daily rate (v16.6.0+, see section 7E) |
+| `Kenya Service Gratuity` | Gratuity Rule list | 15 days' basic salary per year of service (v16.7.0+, see section 7F) |
 
 ---
 
@@ -314,6 +315,46 @@ not supported yet; see `docs/research-2026-10-22.md` §5.
 continuously for more than a month, or doing work that adds up to three months or more, is
 treated as on a monthly contract. Kenya Payroll doesn't check this; review it with the
 employer.
+
+---
+
+## 7F. Paying a leaver (v16.7.0+)
+
+Everything a leaver is owed goes on their **last salary slip**, so PAYE, NSSF, SHIF and
+Housing Levy are worked out on it in the normal way.
+
+1. **Set the Relieving Date** on the Employee. The last slip pays up to that date.
+2. **Add what they're owed** for that month:
+
+| Owed | How | Default treatment |
+|---|---|---|
+| Notice pay (in lieu of notice) | Additional Salary, component **Notice Pay** | Taxed; NSSF, SHIF, Housing Levy |
+| Untaken leave | Leave Encashment (paid through Leave Pay), or Additional Salary with **Leave Pay** | Taxed; NSSF, SHIF, Housing Levy |
+| Severance (redundancy, at least 15 days' pay per completed year, s.40) | Additional Salary, component **Severance Pay** | Taxed; SHIF, Housing Levy; no NSSF |
+| Gratuity / service pay | HRMS **Gratuity** with rule `Kenya Service Gratuity`, Pay via Salary Slip, component **Gratuity** | Not taxed (earned from 1 July 2025); SHIF, Housing Levy; no NSSF |
+| Loan or advance still owed | Additional Salary with the deduction (e.g. Staff Loan Repayment) | Not limited by the one-third rule on the last slip |
+
+3. **Run payroll** as usual.
+
+**Confirm the defaults with your tax adviser.** Whether NSSF, SHIF and Housing Levy apply to
+notice pay and severance, and whether any severance is tax-free, are not settled. The defaults
+charge them where unsure. Each component's description says what it does; change the ticks
+in its Kenya section (Salary Component) if your adviser says otherwise. Gratuity earned before
+July 2025 may be taxable and isn't handled here.
+
+**Gratuity Rule.** `Kenya Service Gratuity` pays half a month's Basic Salary (15 days of 30)
+per year of service, part years pro rata, from one year of service. Basic is read from the
+employee's last submitted slip. Edit the rule if a contract pays more or counts 26 working
+days; Kenya Payroll never overwrites it. Statutory service pay (s.35(5)) isn't owed to
+employees who are in NSSF or a pension scheme; gratuity for them is whatever the contract says.
+
+**One-third rule.** On the slip that reaches the Relieving Date, deductions may exceed
+two-thirds of pay (recovering final dues). Net pay still can't be negative: HRMS refuses
+such a slip, so a larger balance is recovered another way.
+
+**Full and Final Statement.** If you also use one (for the asset return and the record), leave
+its Gratuity and Leave Encashment rows out when the salary slip paid them: its journal entry
+would pay them a second time.
 
 ---
 

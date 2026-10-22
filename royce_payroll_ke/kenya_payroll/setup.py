@@ -263,7 +263,34 @@ _ENGINE_EMPLOYER_FLAGS = {
 }
 
 
-def _spec(name, abbr, type_, flags, formula="", p9a="", p10a="", account=None, liability=None, owned=False):
+# Leaving pay (v16.7.0), paid on the final slip through Additional Salary (or HRMS's
+# Gratuity, which creates one). Defaults are the cautious reading: where it's unsettled
+# whether SHIF and Housing Levy apply, they're charged. Each component says so in its
+# description; they're seeded, so a client's adviser can change the flags.
+_SEVERANCE_FLAGS = {**_VARIABLE_PAY_FLAGS, "royce_nssf_pensionable": 0}
+
+# Gratuity earned from 1 July 2025 is not taxable (Finance Act 2025, KRA public notice
+# 2246). Gratuity earned before then is not supported (no spread-back).
+_GRATUITY_FLAGS = {**_SEVERANCE_FLAGS, "is_tax_applicable": 0}
+
+_ADVISER = "Default treatment, confirm with your tax adviser: "
+NOTICE_PAY_DESCRIPTION = (
+	"Pay in lieu of notice (Employment Act s.35-36). " + _ADVISER
+	+ "taxed in the month paid, with NSSF, SHIF and Housing Levy, as salary for the notice period."
+)
+SEVERANCE_PAY_DESCRIPTION = (
+	"Redundancy severance, at least 15 days' pay per completed year (Employment Act s.40(1)(g)). "
+	+ _ADVISER + "taxed in the month paid, with SHIF and Housing Levy, no NSSF."
+)
+GRATUITY_DESCRIPTION = (
+	"Gratuity or service pay on leaving. Use with the Gratuity Rule 'Kenya Service Gratuity'. "
+	+ _ADVISER + "not taxed (gratuity earned from 1 July 2025, Finance Act 2025), with SHIF and "
+	"Housing Levy, no NSSF. Gratuity earned before July 2025 may be taxable: not handled here."
+)
+
+
+def _spec(name, abbr, type_, flags, formula="", p9a="", p10a="", account=None, liability=None, owned=False,
+	description=""):
 	return {
 		"salary_component": name,
 		"abbr": abbr,
@@ -275,6 +302,7 @@ def _spec(name, abbr, type_, flags, formula="", p9a="", p10a="", account=None, l
 		"account": account,
 		"liability": liability,
 		"owned": owned,
+		"description": description,
 	}
 
 
@@ -287,8 +315,8 @@ def component_specs(rates=None):
 	company); `liability` is an Employer Contribution's liability account."""
 	salary, deductions_payable = "Salary Expense", "Employee Deductions Payable"
 
-	def earn(name, abbr, flags, p10a, formula="", p9a="Total Gross Pay"):
-		return _spec(name, abbr, "Earning", flags, formula, p9a, p10a, account=salary)
+	def earn(name, abbr, flags, p10a, formula="", p9a="Total Gross Pay", description=""):
+		return _spec(name, abbr, "Earning", flags, formula, p9a, p10a, account=salary, description=description)
 
 	def ded(name, abbr, kind="", account=deductions_payable):
 		return _spec(name, abbr, "Deduction", {**_DEDUCTION_FLAGS, "royce_kenya_deduction_type": kind},
@@ -325,6 +353,12 @@ def component_specs(rates=None):
 		earn("Car Benefit", "CarBenefit", _NON_CASH_FLAGS, "Value of Car Benefit", p9a="Benefits NonCash"),
 		earn("Housing Benefit", "HousingBenefit", _NON_CASH_FLAGS, "Other Non Cash Benefits",
 			p9a="Value of Quarters"),
+		# Leaving pay, on the final slip. Leave paid out uses Leave Pay above.
+		earn("Notice Pay", "NoticePay", _VARIABLE_PAY_FLAGS, "Other Allowance", description=NOTICE_PAY_DESCRIPTION),
+		earn("Severance Pay", "Severance", _SEVERANCE_FLAGS, "Other Allowance",
+			description=SEVERANCE_PAY_DESCRIPTION),
+		# Not taxed, so not on the P9A/P10A pay columns (like Expense Reimbursement).
+		earn("Gratuity", "Gratuity", _GRATUITY_FLAGS, "", p9a="", description=GRATUITY_DESCRIPTION),
 		# Deductions entered per employee (Additional Salary, recurring where needed).
 		ded("Pension Contribution", "Pension", "Pension Contribution"),
 		ded("Post-Retirement Medical Fund", "PRMF", "Post-Retirement Medical Fund"),
@@ -368,6 +402,8 @@ def upsert_component(spec):
 	doc.formula = spec["formula"]
 	doc.royce_p9a_tax_deduction_card_type = spec.get("p9a") or ""
 	doc.royce_p10a_tax_deduction_card_type = spec.get("p10a") or ""
+	if spec.get("description"):
+		doc.description = spec["description"]
 
 	for fieldname, value in spec["flags"].items():
 		doc.set(fieldname, value)
@@ -408,6 +444,55 @@ def map_accounts(company):
 		if liability:
 			row.liability_account = liability
 		doc.save(ignore_permissions=True)
+
+
+# ---------------------------------------------------------------------------
+# Leaving pay: Gratuity Rule, leave encashment
+# ---------------------------------------------------------------------------
+
+GRATUITY_RULE = "Kenya Service Gratuity"
+
+
+def ensure_gratuity_rule():
+	"""HRMS Gratuity Rule for service pay: 15 days' basic salary per year of service
+	(Employment Act s.35(5): "not less than fifteen days' wages for each completed year").
+	HRMS multiplies the last slip's monthly Basic Salary by years x fraction, so 15 days
+	of a 30-day month is 0.5. Part years are paid pro rata ("Take Exact Completed Years"
+	is HRMS's name for unrounded years); at least one year is needed.
+
+	Created once if missing, then the client's: a contract that pays more (or uses 26
+	working days) is an edit to the rule, never overwritten. Site-wide, like the
+	components. s.35(5) service pay isn't owed to employees in NSSF or a pension scheme
+	(s.35(6)), so whether to pay it is the employer's call per employee."""
+	if frappe.db.exists("Gratuity Rule", GRATUITY_RULE):
+		return GRATUITY_RULE
+	if not frappe.db.exists("Salary Component", "Basic Salary"):
+		return None
+
+	rule = frappe.new_doc("Gratuity Rule")
+	rule.name = GRATUITY_RULE
+	rule.calculate_gratuity_amount_based_on = "Sum of all previous slabs"
+	rule.work_experience_calculation_function = "Take Exact Completed Years"
+	rule.total_working_days_per_year = 365
+	rule.minimum_year_for_gratuity = 1
+	rule.append("applicable_earnings_component", {"salary_component": "Basic Salary"})
+	# One slab with no year limits: the same fraction for every year of service.
+	rule.append("gratuity_rule_slabs", {"from_year": 0, "to_year": 0, "fraction_of_applicable_earnings": 0.5})
+	rule.insert(ignore_permissions=True)
+	return rule.name
+
+
+def link_leave_encashment():
+	"""Leave Encashment pays through Additional Salary with the Leave Type's earning
+	component, and refuses to submit without one. Point every encashable Leave Type that
+	has none at Leave Pay (taxed with NSSF, SHIF and Housing Levy, P10A Leave Pay). A
+	component the client chose is kept."""
+	if not frappe.db.exists("Salary Component", "Leave Pay"):
+		return
+	for leave_type in frappe.get_all(
+		"Leave Type", filters={"allow_encashment": 1, "earning_component": ["is", "not set"]}, pluck="name"
+	):
+		frappe.db.set_value("Leave Type", leave_type, "earning_component", "Leave Pay")
 
 
 # ---------------------------------------------------------------------------
@@ -853,9 +938,9 @@ def _require_kenya_region():
 
 @frappe.whitelist()
 def provision(company, rates=None):
-	"""Full setup for a company: accounts, Kenya Payroll's components, the Income Tax Slab
-	placeholder, the Payroll Period, and the two Salary Structures (monthly salary and
-	casual wages). Safe to re-run."""
+	"""Full setup for a company: accounts, Kenya Payroll's components, the Gratuity Rule,
+	the Income Tax Slab placeholder, the Payroll Period, and the two Salary Structures
+	(monthly salary and casual wages). Safe to re-run."""
 	_require_payroll_write_permission()
 	_require_kenya_region()
 	rates_doc = _get_rates_doc(rates)
@@ -863,6 +948,8 @@ def provision(company, rates=None):
 	ensure_accounts(company)
 	ensure_components(rates_doc)
 	map_accounts(company)
+	gratuity_rule = ensure_gratuity_rule()
+	link_leave_encashment()
 	slab = ensure_income_tax_slab_placeholder(company, rates_doc)
 	period = ensure_payroll_period(company, rates_doc)
 	structure = ensure_salary_structure(company, rates_doc)
@@ -888,6 +975,7 @@ def provision(company, rates=None):
 		"payroll_period": period,
 		"salary_structure": structure,
 		"casual_structure": casual_structure,
+		"gratuity_rule": gratuity_rule,
 		"holiday_lists": holiday_lists,
 	}
 
@@ -895,8 +983,8 @@ def provision(company, rates=None):
 @frappe.whitelist()
 def regenerate(rates=None):
 	"""Re-apply Kenya Payroll's own (owned) component definitions, create any missing
-	catalogue component or casual wages structure, and complete account mappings for
-	every provisioned company.
+	catalogue component, Gratuity Rule or casual wages structure, and complete account
+	mappings for every provisioned company.
 	A seeded component that already exists is never changed, nor is a client's own.
 
 	A Finance Act rate change does NOT need this any more: submit a new Kenya Payroll
@@ -905,6 +993,8 @@ def regenerate(rates=None):
 	_require_payroll_write_permission()
 	rates_doc = _get_rates_doc(rates)
 	ensure_components(rates_doc)
+	ensure_gratuity_rule()
+	link_leave_encashment()
 
 	structures = {}
 	for company in _provisioned_companies():

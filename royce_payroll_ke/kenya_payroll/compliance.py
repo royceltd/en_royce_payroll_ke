@@ -5,7 +5,7 @@
 
 - One-third rule: the Employment Act 2007, s.19(3), caps an employee's total deductions at
   two-thirds of their wages. Stacked loans, SACCO and HELB deductions are how it gets
-  broken.
+  broken. Not applied to a leaver's final slip (final-dues recoveries).
 - Statutory details: KRA's PAYE return lists employees by KRA PIN; the NSSF, SHA and KRA
   returns need the ID, NSSF and SHA numbers; a bank payment needs an account number.
 - Days worked (casual wages structure): pay is daily rate x days worked, so a slip with no
@@ -24,7 +24,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import date_diff, flt, fmt_money, get_link_to_form
+from frappe.utils import date_diff, flt, fmt_money, get_link_to_form, getdate
 
 from royce_payroll_ke.kenya_payroll.engine import is_kenya_structure
 from royce_payroll_ke.kenya_payroll.setup import is_casual_structure
@@ -114,6 +114,16 @@ def days_worked_problem(days_worked, start_date, end_date):
 	return None
 
 
+def is_final_slip(slip):
+	"""The slip pays the employee's last period: their Relieving Date falls on or before
+	its end. Recovering what a leaver owes (loans, advances) from final dues is exempt
+	from the one-third rule; there's no later wage to recover it from."""
+	if not slip.employee or not slip.end_date:
+		return False
+	relieving_date = frappe.db.get_value("Employee", slip.employee, "relieving_date")
+	return bool(relieving_date and getdate(relieving_date) <= getdate(slip.end_date))
+
+
 def slip_problems(slip):
 	"""[(check, message)] for one salary slip."""
 	problems = list(employee_problems(slip.employee)) if slip.employee else []
@@ -121,7 +131,7 @@ def slip_problems(slip):
 		message = days_worked_problem(slip.get("royce_days_worked"), slip.start_date, slip.end_date)
 		if message:
 			problems.append(("days_worked", message))
-	if level("one_third_rule") != OFF:
+	if level("one_third_rule") != OFF and not is_final_slip(slip):
 		deductions = flt(slip.total_deduction) + flt(slip.get("total_loan_repayment"))
 		message = one_third_problem(slip.gross_pay, deductions)
 		if message:
