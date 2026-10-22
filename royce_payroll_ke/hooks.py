@@ -191,6 +191,13 @@ doc_events["Payroll Entry"]["validate"] = [
 # Payroll checks (kenya_payroll/compliance.py): one-third rule, KRA PIN, ID/NSSF/SHA numbers,
 # bank details. Block/Warn/Off per check in Kenya Payroll Settings.
 doc_events["Salary Slip"]["validate"] = "royce_payroll_ke.kenya_payroll.compliance.warn_slip_problems"
+# Staff loans (kenya_payroll/staff_loans.py): a slip's repayments are recorded on the loans
+# when it's submitted and taken off when it's cancelled.
+doc_events["Salary Slip"]["on_submit"] = [
+	_DROP_TELEMETRY,
+	"royce_payroll_ke.kenya_payroll.staff_loans.record_slip",
+]
+doc_events["Salary Slip"]["on_cancel"] = "royce_payroll_ke.kenya_payroll.staff_loans.reverse_slip"
 doc_events["Salary Component"] = {
 	"validate": "royce_payroll_ke.kenya_payroll.engine.validate_salary_component"
 }

@@ -1,0 +1,271 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:STL-{YYYY}-{#####}",
+ "creation": "2026-10-23 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "company",
+  "column_break_header",
+  "status",
+  "outstanding_balance",
+  "currency",
+  "loan_section",
+  "loan_amount",
+  "disbursement_date",
+  "interest_rate",
+  "column_break_loan",
+  "repayment_start_date",
+  "repayment_months",
+  "monthly_repayment",
+  "repayment_section",
+  "total_repaid",
+  "total_interest",
+  "column_break_repayment",
+  "write_off_date",
+  "deductions",
+  "remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "fetch_from": "employee.employee_name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "fetch_from": "employee.company",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nActive\nRepaid\nWritten Off\nCancelled",
+   "default": "Draft",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "outstanding_balance",
+   "fieldtype": "Currency",
+   "label": "Outstanding Balance",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "options": "Currency",
+   "label": "Currency",
+   "default": "KES",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "loan_section",
+   "fieldtype": "Section Break",
+   "label": "Loan"
+  },
+  {
+   "fieldname": "loan_amount",
+   "fieldtype": "Currency",
+   "label": "Loan Amount",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "disbursement_date",
+   "fieldtype": "Date",
+   "label": "Disbursement Date",
+   "reqd": 1,
+   "description": "When the money was paid to the employee. Pay it out with a Payment Entry or Journal Entry debiting the Staff Loans account."
+  },
+  {
+   "fieldname": "interest_rate",
+   "fieldtype": "Percent",
+   "label": "Interest Rate (% a year)",
+   "default": "0",
+   "description": "Charged to the employee each month on the outstanding balance (deducted as Staff Loan Interest). 0 for an interest-free loan. A rate below KRA's market rate means fringe benefit tax for the employer."
+  },
+  {
+   "fieldname": "column_break_loan",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "repayment_start_date",
+   "fieldtype": "Date",
+   "label": "Repayment Starts",
+   "reqd": 1,
+   "description": "Any date in the first payroll month the repayment is deducted."
+  },
+  {
+   "fieldname": "repayment_months",
+   "fieldtype": "Int",
+   "label": "Repayment Months",
+   "description": "Fills Monthly Repayment if that is left empty."
+  },
+  {
+   "fieldname": "monthly_repayment",
+   "fieldtype": "Currency",
+   "label": "Monthly Repayment",
+   "options": "currency",
+   "description": "Deducted from each salary slip until the loan is repaid; can be changed later (applies from the next slip). The leaver's final slip deducts the whole balance.",
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "repayment_section",
+   "fieldtype": "Section Break",
+   "label": "Repayments"
+  },
+  {
+   "fieldname": "total_repaid",
+   "fieldtype": "Currency",
+   "label": "Total Repaid",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_interest",
+   "fieldtype": "Currency",
+   "label": "Total Interest Paid",
+   "options": "currency",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_repayment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "write_off_date",
+   "fieldtype": "Date",
+   "label": "Write Off On",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1,
+   "description": "The salary slip covering this date clears the balance and pays it as Staff Loan Write-off, a taxable benefit."
+  },
+  {
+   "fieldname": "deductions",
+   "fieldtype": "Table",
+   "options": "Staff Loan Deduction",
+   "label": "Deductions",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "options": "Staff Loan",
+   "label": "Amended From",
+   "read_only": 1,
+   "no_copy": 1,
+   "print_hide": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-10-23 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Kenya Payroll",
+ "name": "Staff Loan",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1,
+   "role": "HR Manager"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "submit": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1,
+   "email": 1,
+   "share": 1,
+   "role": "HR User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  }
+ ],
+ "search_fields": "employee,employee_name",
+ "show_title_field_in_link": 0,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "employee_name",
+ "track_changes": 1
+}

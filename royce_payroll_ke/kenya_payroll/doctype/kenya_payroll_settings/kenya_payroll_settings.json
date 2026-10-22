@@ -10,7 +10,11 @@
   "missing_kra_pin",
   "column_break_checks",
   "missing_statutory_numbers",
-  "missing_bank_details"
+  "missing_bank_details",
+  "fbt_section",
+  "fbt_intro",
+  "fbt_rate",
+  "fbt_market_rates"
  ],
  "fields": [
   {
@@ -62,19 +66,55 @@
    "label": "Missing Bank Details",
    "options": "Block\nWarn\nOff",
    "reqd": 1
+  },
+  {
+   "fieldname": "fbt_section",
+   "fieldtype": "Section Break",
+   "label": "Fringe Benefit Tax (Staff Loans)"
+  },
+  {
+   "fieldname": "fbt_intro",
+   "fieldtype": "HTML",
+   "options": "<p class=\"text-muted\">Income Tax Act s.12B: on a staff loan at a rate below KRA's market interest rate, the employer pays fringe benefit tax on the interest the employee didn't pay, with the PAYE return. Enter KRA's rate for each quarter as it is published. See the Fringe Benefit Tax report.</p>"
+  },
+  {
+   "default": "30",
+   "description": "The corporation tax rate (30% for resident companies).",
+   "fieldname": "fbt_rate",
+   "fieldtype": "Percent",
+   "label": "Fringe Benefit Tax Rate (%)"
+  },
+  {
+   "fieldname": "fbt_market_rates",
+   "fieldtype": "Table",
+   "label": "KRA Market Interest Rates",
+   "options": "Kenya FBT Market Rate"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-22 17:00:00.000000",
+ "modified": "2026-10-23 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll Settings",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "read": 1, "role": "System Manager", "write": 1},
-  {"create": 1, "read": 1, "role": "HR Manager", "write": 1},
-  {"read": 1, "role": "HR User"}
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "HR Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "HR User"
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

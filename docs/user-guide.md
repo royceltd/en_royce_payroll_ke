@@ -126,7 +126,7 @@ twice against the same company doesn't duplicate accounts, components, or the st
 | 5 statutory payable accounts | Chart of Accounts, under `Duties and Taxes - {ABBR}` | PAYE, NSSF, SHIF, Housing Levy, NITA Payable |
 | 4 expense accounts | Chart of Accounts, under `Indirect Expenses - {ABBR}` | Salary Expense + 3 employer-cost accounts |
 | `Payroll Payable - {ABBR}` | Chart of Accounts, under `Accounts Payable - {ABBR}` | Only created if missing — usually already exists |
-| 34 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
+| 36 Salary Components | Salary Component list | Global — shared across every company on the site, not just this one |
 | `Kenya PAYE Placeholder {year}` | Income Tax Slab list | Empty, submitted — required by HRMS validation, never actually read |
 | A Payroll Period covering the calendar year | Payroll Period list | Skipped if one already covers that year for this company |
 | `{ABBR} Payroll Structure {rates version}` | Salary Structure list | Submitted, correct row order baked in — named after the exact Kenya Payroll Rates record, not just the year (see section 7) |
@@ -355,6 +355,42 @@ such a slip, so a larger balance is recovered another way.
 **Full and Final Statement.** If you also use one (for the asset return and the record), leave
 its Gratuity and Leave Encashment rows out when the salary slip paid them: its journal entry
 would pay them a second time.
+
+---
+
+## 7G. Staff loans (v16.8.0+)
+
+For loans to employees repaid through payroll. (Salary advances: use HRMS's **Employee
+Advance**.) Open **Kenya Payroll → Staff Loans → Staff Loan**.
+
+1. **Create the loan:** employee, Loan Amount, Disbursement Date, Repayment Starts (any date in
+   the first month to deduct), and either Monthly Repayment or Repayment Months. Interest Rate
+   is a yearly rate charged on the balance each month (0 for an interest-free loan). Submit.
+2. **Pay it out** with a Payment Entry or Journal Entry: debit **Staff Loans**, credit the bank.
+3. **Run payroll as usual.** Each slip deducts **Staff Loan Repayment** (the monthly amount, or
+   the balance if less) and **Staff Loan Interest**. The loan's balance and deductions table
+   update when the slip is submitted, and go back if the slip is cancelled. The loan shows
+   **Repaid** when the balance reaches zero.
+
+**Leavers.** The slip that reaches the employee's Relieving Date deducts the whole balance, as far
+as their pay covers it (net pay can't go below zero). The one-third rule doesn't apply to that
+slip. Any balance left stays on the loan; recover it another way.
+
+**Writing a loan off.** On the loan, **Write Off** and pick a date. The slip covering that date
+clears the balance and adds the same amount to pay as **Staff Loan Write-off**, so net pay is
+unchanged but PAYE (and, by default, SHIF and Housing Levy) is charged on it: a forgiven loan is
+a taxable benefit. Confirm the levies with your tax adviser. **Cancel Write Off** undoes it
+until that slip is submitted.
+
+**Fringe benefit tax.** A loan at a rate below KRA's market interest rate means fringe benefit
+tax for the employer (Income Tax Act s.12B): 30% of the interest the employee didn't pay,
+paid with the month's PAYE by the 9th. Enter KRA's market rate for each quarter in **Kenya
+Payroll Settings → Fringe Benefit Tax**, then run **Fringe Benefit Tax** (Kenya Payroll → Staff
+Loans) for the month: one row per loan with the PAYE return's Sheet D columns, the benefit and
+the tax. The tax is not posted to the accounts; post it with the PAYE payment.
+
+Loans already deducted through Additional Salary keep working. An employee is handled by
+Staff Loan only once they have one; don't use both for the same employee.
 
 ---
 

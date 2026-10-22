@@ -58,6 +58,7 @@ EXPENSE_ACCOUNTS = [
 CATALOGUE_ACCOUNTS = [
 	("Employee Deductions Payable", "Accounts Payable", ""),  # HELB, SACCO, pension, insurance...
 	("Staff Loans", "Loans and Advances (Assets)", ""),  # staff loan repayments reduce this asset
+	("Staff Loan Interest Income", "Indirect Income", ""),  # interest charged on staff loans
 ]
 
 
@@ -282,6 +283,11 @@ SEVERANCE_PAY_DESCRIPTION = (
 	"Redundancy severance, at least 15 days' pay per completed year (Employment Act s.40(1)(g)). "
 	+ _ADVISER + "taxed in the month paid, with SHIF and Housing Levy, no NSSF."
 )
+LOAN_WRITE_OFF_DESCRIPTION = (
+	"A staff loan balance the employer forgives, added by the Staff Loan's Write Off (the slip "
+	"also deducts the same amount, clearing the loan). " + _ADVISER + "taxed in the month written "
+	"off, with SHIF and Housing Levy, no NSSF."
+)
 GRATUITY_DESCRIPTION = (
 	"Gratuity or service pay on leaving. Use with the Gratuity Rule 'Kenya Service Gratuity'. "
 	+ _ADVISER + "not taxed (gratuity earned from 1 July 2025, Finance Act 2025), with SHIF and "
@@ -359,6 +365,9 @@ def component_specs(rates=None):
 			description=SEVERANCE_PAY_DESCRIPTION),
 		# Not taxed, so not on the P9A/P10A pay columns (like Expense Reimbursement).
 		earn("Gratuity", "Gratuity", _GRATUITY_FLAGS, "", p9a="", description=GRATUITY_DESCRIPTION),
+		# Staff loans (v16.8.0): added by the engine from Staff Loan (staff_loans.py).
+		earn("Staff Loan Write-off", "LoanWriteOff", _SEVERANCE_FLAGS, "Other Allowance",
+			description=LOAN_WRITE_OFF_DESCRIPTION),
 		# Deductions entered per employee (Additional Salary, recurring where needed).
 		ded("Pension Contribution", "Pension", "Pension Contribution"),
 		ded("Post-Retirement Medical Fund", "PRMF", "Post-Retirement Medical Fund"),
@@ -368,6 +377,7 @@ def component_specs(rates=None):
 		ded("Staff Welfare", "Welfare"),
 		ded("Union Dues", "UnionDues"),
 		ded("Staff Loan Repayment", "StaffLoan", account="Staff Loans"),
+		ded("Staff Loan Interest", "StaffLoanInterest", account="Staff Loan Interest Income"),
 		# Owned: filled by the engine.
 		owned("NSSF Tier I - Employee", "NSSF_T1", "E1 Defined Contribution Retirement Scheme",
 			"Actual Contribution", "NSSF Payable"),

@@ -277,6 +277,11 @@ def apply_kenya_statutory(slip):
 		)
 	rates = frappe.get_cached_doc("Kenya Payroll Rates", rates_name)
 
+	# Staff loan repayment, interest and write-off first: a write-off is taxable pay.
+	from royce_payroll_ke.kenya_payroll import staff_loans
+
+	staff_loans.apply_to_slip(slip, _set_row)
+
 	result = compute(
 		_slip_earnings(slip),
 		_slip_deductions(slip),
@@ -302,6 +307,8 @@ def apply_kenya_statutory(slip):
 			slip.set(fieldname, getattr(result, attr))
 	if meta.has_field("royce_kenya_payroll_rates"):
 		slip.royce_kenya_payroll_rates = rates_name
+
+	staff_loans.cap_final_recovery(slip)
 
 
 def _require_monthly(payroll_frequency, salary_structure):

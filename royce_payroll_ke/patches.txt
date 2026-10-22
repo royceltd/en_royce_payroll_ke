@@ -8,3 +8,4 @@ royce_payroll_ke.patches.v16_4_kenya_statutory_engine
 royce_payroll_ke.patches.v16_5_component_catalogue
 royce_payroll_ke.patches.v16_6_casual_wages
 royce_payroll_ke.patches.v16_7_leaving_pay
+royce_payroll_ke.patches.v16_8_staff_loans

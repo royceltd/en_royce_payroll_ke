@@ -1,7 +1,7 @@
 {
  "app": "royce_payroll_ke",
  "charts": [],
- "content": "[{\"id\": \"rpk-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kenya Payroll</b></span>\", \"col\": 12}}, {\"id\": \"rpk-para\", \"type\": \"paragraph\", \"data\": {\"text\": \"Kenya PAYE, NSSF, SHIF, Housing Levy and NITA payroll compliance.\", \"col\": 12}}, {\"id\": \"rpk-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-shortcut-rates\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Payroll Rates\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p9a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P9A Tax Deduction Card\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p10a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P10A Monthly Return\", \"col\": 4}}, {\"id\": \"rpk-spacer-2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-card-setup\", \"type\": \"card\", \"data\": {\"card_name\": \"Setup\", \"col\": 4}}, {\"id\": \"rpk-card-review\", \"type\": \"card\", \"data\": {\"card_name\": \"Payroll Review\", \"col\": 4}}, {\"id\": \"rpk-card-reports\", \"type\": \"card\", \"data\": {\"card_name\": \"Statutory Reports\", \"col\": 4}}]",
+ "content": "[{\"id\": \"rpk-header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Kenya Payroll</b></span>\", \"col\": 12}}, {\"id\": \"rpk-para\", \"type\": \"paragraph\", \"data\": {\"text\": \"Kenya PAYE, NSSF, SHIF, Housing Levy and NITA payroll compliance.\", \"col\": 12}}, {\"id\": \"rpk-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-shortcut-rates\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Payroll Rates\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p9a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P9A Tax Deduction Card\", \"col\": 4}}, {\"id\": \"rpk-shortcut-p10a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"P10A Monthly Return\", \"col\": 4}}, {\"id\": \"rpk-spacer-2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"rpk-card-setup\", \"type\": \"card\", \"data\": {\"card_name\": \"Setup\", \"col\": 4}}, {\"id\": \"rpk-card-review\", \"type\": \"card\", \"data\": {\"card_name\": \"Payroll Review\", \"col\": 4}}, {\"id\": \"rpk-card-loans\", \"type\": \"card\", \"data\": {\"card_name\": \"Staff Loans\", \"col\": 4}}, {\"id\": \"rpk-card-reports\", \"type\": \"card\", \"data\": {\"card_name\": \"Statutory Reports\", \"col\": 4}}]",
  "creation": "2026-08-17 00:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -69,6 +69,36 @@
    "label": "Payroll Register",
    "link_count": 0,
    "link_to": "Kenya Payroll Register",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Staff Loans",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "description": "Loans to employees, repaid through payroll.",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Staff Loan",
+   "link_count": 0,
+   "link_to": "Staff Loan",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "description": "The employer's tax on staff loans below KRA's market interest rate (PAYE return Sheet D).",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Fringe Benefit Tax",
+   "link_count": 0,
+   "link_to": "Kenya Fringe Benefit Tax",
    "link_type": "Report",
    "onboard": 1,
    "type": "Link"
@@ -153,7 +183,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-22 17:00:00.000000",
+ "modified": "2026-10-23 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll",
