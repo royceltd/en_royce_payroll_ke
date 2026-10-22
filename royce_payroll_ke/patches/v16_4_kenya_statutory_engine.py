@@ -19,6 +19,7 @@ from frappe.utils.fixtures import sync_fixtures
 
 NEW_RATES_VALUES = {
 	"pension_deduction_limit": 30000,
+	"pension_limit_percent_of_basic": 30,
 	"prmf_deduction_limit": 15000,
 	"mortgage_interest_limit": 30000,
 	"disability_exemption_amount": 150000,

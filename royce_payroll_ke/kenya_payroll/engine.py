@@ -72,6 +72,7 @@ class Earning:
 	housing_levy: bool = True
 	non_cash: bool = False
 	tax_free_allowance: str = ""
+	basic: bool = False  # mapped to P9A "Basic Salary": the base of the 30% pension limit
 
 
 @dataclass
@@ -152,8 +153,10 @@ def compute(earnings: list[Earning], deductions: list[Deduction], profile: TaxPr
 	r = Result(tax_category=profile.category or PRIMARY)
 
 	# 1. Earnings: taxable cash pay, non-cash benefits, and the three statutory bases.
-	cash, non_cash = 0.0, 0.0
+	cash, non_cash, basic = 0.0, 0.0, 0.0
 	for e in earnings:
+		if e.basic:
+			basic += flt(e.amount)
 		amount = flt(e.amount)
 		if e.non_cash:
 			non_cash += amount
@@ -169,9 +172,10 @@ def compute(earnings: list[Earning], deductions: list[Deduction], profile: TaxPr
 			r.housing_levy_base += flt(e.amount)
 
 	r.taxable_cash_pay = flt(cash, 2)
-	# Benefits are tax-free only while their total stays under the threshold; at or above
-	# it, all of it is taxable (KRA: "aggregate value below KES 60,000 a year").
-	r.taxable_non_cash_pay = flt(non_cash, 2) if non_cash >= flt(rates.non_cash_benefit_threshold) else 0.0
+	# Benefits are tax-free while their total doesn't exceed the threshold; above it, all
+	# of it is taxable (KRA PAYE guide 2025/26: "non-cash benefits (exceeding Kshs 5,000
+	# per month)").
+	r.taxable_non_cash_pay = flt(non_cash, 2) if non_cash > flt(rates.non_cash_benefit_threshold) else 0.0
 
 	# 2-4. NSSF, SHIF, Housing Levy (employee).
 	lel, uel = flt(rates.nssf_tier_i_limit), flt(rates.nssf_tier_ii_limit)
@@ -188,7 +192,14 @@ def compute(earnings: list[Earning], deductions: list[Deduction], profile: TaxPr
 			by_kind[d.kind] = by_kind.get(d.kind, 0.0) + flt(d.amount)
 
 	pension = r.nssf_tier_i + r.nssf_tier_ii + by_kind.get(PENSION, 0.0)
-	r.pension_allowed = min(pension, flt(rates.pension_deduction_limit))
+	# P9A column E: the lowest of 30% of basic salary (E1), actual contributions (E2) and
+	# the fixed limit (E3, 30,000 a month from December 2024). KRA P9A template 2025.
+	pension_limits = [flt(rates.pension_deduction_limit)]
+	# Skipped when no earning is mapped as Basic Salary (a client's own structure), rather
+	# than read as a basic of 0, which would disallow every pension contribution.
+	if basic > 0 and flt(rates.pension_limit_percent_of_basic):
+		pension_limits.append(basic * _pct(rates.pension_limit_percent_of_basic))
+	r.pension_allowed = flt(min(pension, *pension_limits), 2)
 	r.prmf_allowed = min(by_kind.get(PRMF, 0.0), flt(rates.prmf_deduction_limit))
 	mortgage = flt(profile.mortgage_interest) + by_kind.get(MORTGAGE_INTEREST, 0.0)
 	r.mortgage_interest_allowed = min(mortgage, flt(rates.mortgage_interest_limit))
@@ -316,6 +327,7 @@ def _component_flags(component) -> frappe._dict:
 				"royce_non_cash_benefit",
 				"royce_tax_free_allowance",
 				"royce_kenya_deduction_type",
+				"royce_p9a_tax_deduction_card_type",
 			],
 			as_dict=True,
 		)
@@ -342,6 +354,7 @@ def _slip_earnings(slip) -> list[Earning]:
 				housing_levy=bool(flags.royce_ahl_applicable),
 				non_cash=bool(flags.royce_non_cash_benefit),
 				tax_free_allowance=flags.royce_tax_free_allowance or "",
+				basic=flags.royce_p9a_tax_deduction_card_type == "Basic Salary",
 			)
 		)
 	return earnings

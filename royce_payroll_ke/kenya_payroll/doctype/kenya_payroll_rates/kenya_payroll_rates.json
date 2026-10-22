@@ -33,6 +33,7 @@
   "personal_relief",
   "tax_deductions_section",
   "pension_deduction_limit",
+  "pension_limit_percent_of_basic",
   "prmf_deduction_limit",
   "column_break_tax_deductions",
   "mortgage_interest_limit",
@@ -206,6 +207,14 @@
    "description": "NSSF plus registered pension, provident or individual retirement fund contributions, combined."
   },
   {
+   "fieldname": "pension_limit_percent_of_basic",
+   "fieldtype": "Percent",
+   "label": "Pension Limit (% of Basic Salary)",
+   "default": "30",
+   "reqd": 1,
+   "description": "P9A column E1. The pension deduction is the lowest of this share of basic salary, the actual contributions and the fixed limit."
+  },
+  {
    "fieldname": "prmf_deduction_limit",
    "fieldtype": "Currency",
    "label": "Post-Retirement Medical Fund Limit (KES)",
@@ -291,7 +300,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-22 10:00:00.000000",
+ "modified": "2026-10-22 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll Rates",

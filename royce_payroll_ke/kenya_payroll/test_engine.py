@@ -150,13 +150,28 @@ class TestCompute(UnitTestCase):
 		for attr in ("nssf_tier_i", "nssf_tier_ii", "shif", "housing_levy", "taxable_pay", "paye"):
 			self.assertEqual(getattr(base, attr), getattr(with_reimbursement, attr), attr)
 
-	def test_non_cash_benefits_below_threshold_are_tax_free(self):
+	def test_non_cash_benefits_up_to_the_threshold_are_tax_free(self):
+		# KRA PAYE guide 2025/26: taxable when "exceeding Kshs 5,000 per month", then in full.
 		base = self.run_case([pay(60000)])
-		below = self.run_case([pay(60000), not_pay(4999, non_cash=True)])
 		at = self.run_case([pay(60000), not_pay(5000, non_cash=True)])
-		self.assertEqual(below.taxable_pay, base.taxable_pay)
-		self.assertEqual(at.taxable_non_cash_pay, 5000)
-		self.assertEqual(at.taxable_pay, base.taxable_pay + 5000)
+		above = self.run_case([pay(60000), not_pay(5001, non_cash=True)])
+		self.assertEqual(at.taxable_pay, base.taxable_pay)
+		self.assertEqual(above.taxable_non_cash_pay, 5001)
+		self.assertEqual(above.taxable_pay, base.taxable_pay + 5001)
+
+	def test_pension_limited_to_30_percent_of_basic(self):
+		# P9A column E: lowest of 30% of basic (E1), actual (E2), 30,000 (E3).
+		# Basic 20,000: NSSF 540 + 660 = 1,200, plus a 10,000 scheme = 11,200 actual;
+		# 30% of basic = 6,000, so 6,000 is allowed.
+		r = self.run_case([pay(20000, basic=True)], [Deduction(10000, PENSION)])
+		self.assertEqual(r.pension_allowed, 6000)
+		# Same contributions on basic 100,000: 30% = 30,000, actual 16,000 is allowed.
+		r = self.run_case([pay(100000, basic=True)], [Deduction(10000, PENSION)])
+		self.assertEqual(r.pension_allowed, 16000)
+
+	def test_no_basic_mapped_skips_the_30_percent_limit(self):
+		r = self.run_case([pay(20000)], [Deduction(10000, PENSION)])
+		self.assertEqual(r.pension_allowed, 11200)
 
 	def test_meals_tax_free_up_to_the_limit(self):
 		base = self.run_case([pay(60000)])

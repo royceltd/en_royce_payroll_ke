@@ -58,6 +58,7 @@ DEFAULT_RATES = {
 	"personal_relief": 2400,
 	# Tax Laws (Amendment) Act 2024 limits; see docs/taxable-income-engine.md.
 	"pension_deduction_limit": 30000,
+	"pension_limit_percent_of_basic": 30,
 	"prmf_deduction_limit": 15000,
 	"mortgage_interest_limit": 30000,
 	"disability_exemption_amount": 150000,
