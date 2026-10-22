@@ -118,7 +118,7 @@ class TestCompute(UnitTestCase):
 		# Gross 100,000: NSSF 6,000; SHIF 2,750; AHL 1,500; taxable 89,750.
 		# Tax 4,483.25 + 57,417 x 30% = 21,708.35. Premiums 50,000 x 15% = 7,500 -> 5,000.
 		# PAYE 21,708.35 - 2,400 - 5,000 = 14,308.35 -> 14,308.
-		r = self.run_case([pay(100000)], profile=TaxProfile(insurance_premium=50000))
+		r = self.run_case([pay(100000)], [Deduction(50000, INSURANCE_PREMIUM)])
 		self.assertEqual(r.insurance_relief, 5000)
 		self.assertEqual(r.paye, 14308)
 

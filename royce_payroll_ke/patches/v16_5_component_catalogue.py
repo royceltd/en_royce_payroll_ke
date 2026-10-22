@@ -10,6 +10,8 @@
    missing. Existing components with the same names are left as they are.
 3. Every provisioned company gets the catalogue's accounts and component mappings.
 4. Kenya Payroll Rates get the 30%-of-basic pension limit (P9A column E1).
+5. Employee's "Insurance Premiums Paid Directly" field is removed: KRA gives insurance
+   relief through PAYE only on premiums deducted through payroll.
 
 Existing Salary Structures are not changed: the engine moves their employer rows to the
 slip's Employer Contributions section, and their House/Transport formulas stay as they
@@ -20,6 +22,9 @@ from frappe.utils.fixtures import sync_fixtures
 
 
 def execute():
+	# Insurance relief only applies to premiums deducted through payroll (KRA), so the
+	# v16.4.0 "premiums paid directly" Employee field is gone.
+	frappe.delete_doc_if_exists("Custom Field", "Employee-royce_insurance_premium")
 	sync_fixtures("royce_payroll_ke")
 	frappe.clear_cache(doctype="Salary Structure Assignment")
 

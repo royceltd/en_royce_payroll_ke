@@ -238,8 +238,9 @@ section and post to their own expense and liability accounts (NSSF / Housing Lev
 in a separate journal entry when the Payroll Entry is submitted.
 
 **Employee** (Kenya Tax section): tax category (Primary or Secondary Employment), mortgage interest
-and insurance premiums the employee pays directly (monthly, from the lender's or insurer's
-certificate), and a disability exemption with its certificate number and expiry date.
+(monthly, from the lender's certificate), and a disability exemption with its certificate number and
+expiry date. Insurance relief only applies to premiums deducted through payroll (the Insurance
+Premium deduction); premiums an employee pays directly are claimed in their own annual return.
 
 Every limit above lives on Kenya Payroll Rates and changes with a new rates record. Each payslip's
 **Kenya PAYE** section shows the full working: taxable pay, what was allowed, tax charged, reliefs.

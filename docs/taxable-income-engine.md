@@ -86,7 +86,7 @@ record effective on the slip's **end date** (not the structure's rates version).
    - Primary employment: the five monthly bands.
    - Secondary employment: taxable pay x secondary rate, no personal relief.
 8. **Reliefs**: personal relief (primary only); insurance relief = min(15% x
-   (insurance-premium deductions + declared premiums), 5,000).
+   (insurance-premium deductions through payroll only, per KRA), 5,000).
 9. **PAYE** = max(0, tax charged - reliefs), rounded per the component.
 10. **Employer side**: NSSF Employer on the NSSF base (Tier I + II, 6%), Housing Levy
     Employer on the Housing Levy base, NITA flat. Written to the existing employer rows
@@ -108,7 +108,7 @@ Contribution / Post-Retirement Medical Fund / Mortgage Interest / Insurance Prem
 
 **Employee** ("Kenya tax" section): tax category (Primary / Secondary), disability
 exemption (check, certificate number, expiry date, exempt amount), declared monthly
-mortgage interest, declared monthly insurance premium (paid by the employee directly).
+mortgage interest. (A "premiums paid directly" field existed briefly; removed in v16.5.0, see research notes §3c.)
 
 **Kenya Payroll Rates**: pension cap, PRMF cap, mortgage interest cap, insurance relief
 rate and cap, non-cash benefit threshold, meals allowance, disability exemption default,

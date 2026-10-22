@@ -86,7 +86,6 @@ class TaxProfile:
 	category: str = PRIMARY
 	disability_exempt_amount: float = 0
 	mortgage_interest: float = 0
-	insurance_premium: float = 0
 
 
 @dataclass
@@ -227,7 +226,9 @@ def compute(earnings: list[Earning], deductions: list[Deduction], profile: TaxPr
 		r.tax_charged = band_tax(r.taxable_pay, rates.paye_bands)
 		r.personal_relief = min(flt(rates.personal_relief), r.tax_charged)
 
-	premiums = flt(profile.insurance_premium) + by_kind.get(INSURANCE_PREMIUM, 0.0)
+	# Only premiums deducted through payroll (KRA, simplified PAYE return guide, 2025).
+	# Premiums an employee pays directly are claimed in their own annual return.
+	premiums = by_kind.get(INSURANCE_PREMIUM, 0.0)
 	insurance_relief = min(premiums * _pct(rates.insurance_relief_rate), flt(rates.insurance_relief_limit))
 	r.insurance_relief = flt(min(insurance_relief, r.tax_charged - r.personal_relief), 2)
 	r.paye = _whole(max(0.0, r.tax_charged - r.personal_relief - r.insurance_relief))
@@ -382,7 +383,6 @@ def _tax_profile(employee, rates, period_start) -> TaxProfile:
 			"royce_disability_certificate_expiry",
 			"royce_disability_exempt_amount",
 			"royce_mortgage_interest",
-			"royce_insurance_premium",
 		],
 		as_dict=True,
 	) or frappe._dict()
@@ -396,7 +396,6 @@ def _tax_profile(employee, rates, period_start) -> TaxProfile:
 		category=emp.royce_tax_category or PRIMARY,
 		disability_exempt_amount=exempt,
 		mortgage_interest=flt(emp.royce_mortgage_interest),
-		insurance_premium=flt(emp.royce_insurance_premium),
 	)
 
 
