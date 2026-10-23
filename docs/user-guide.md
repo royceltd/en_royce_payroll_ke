@@ -394,6 +394,34 @@ Staff Loan only once they have one; don't use both for the same employee.
 
 ---
 
+## 7H. Payslips by SMS (v16.9.0+)
+
+Texts each employee a short pay summary, through the **Bulk SMS** app (it must be installed,
+enabled and have an API key and an approved Sender ID: see its own guide). The number used is
+the **Mobile** (cell number) on the Employee.
+
+- **Whole payroll run:** open the submitted Payroll Entry → **Send Payslips by SMS**. A preview
+  shows how many will be sent, who is skipped (no mobile number, or already sent), an example
+  message and the estimated cost. **Send** sends in the background; the result appears as a
+  message and as a comment on the Payroll Entry. Tick **Also resend to those already sent** to
+  send again to everyone.
+- **One employee:** open their submitted Salary Slip → **Send by SMS** (always sends).
+- Every message is in **Bulk SMS Log**, linked to its salary slip, with status and cost.
+
+The default message is about one SMS (160 characters):
+
+> Jane Wanjiku, Oct 2026 pay: gross 50,000, deductions 11,018, net KES 38,982. Test Hardware Ltd
+
+Change it in **Kenya Payroll Settings → Payslip SMS Template** (Jinja: `{{ employee_name }}`,
+`{{ first_name }}`, `{{ month }}`, `{{ gross }}`, `{{ deductions }}`, `{{ net }}`, `{{ paye }}`,
+`{{ company }}`, `{{ doc }}`). Anyone holding the phone can read an SMS, so keep it a summary:
+no KRA PIN, loans or other personal details. Nothing is sent automatically when slips are
+submitted.
+
+Pay data goes to the SMS provider (RoyceTalk); include that in your data protection records.
+
+---
+
 ## 7A. Running the statutory reports
 
 Seven reports exist once submitted Salary Slips do: **Kenya NSSF Contributions**, **Kenya SHIF

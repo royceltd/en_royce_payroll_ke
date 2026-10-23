@@ -14,7 +14,10 @@
   "fbt_section",
   "fbt_intro",
   "fbt_rate",
-  "fbt_market_rates"
+  "fbt_market_rates",
+  "payslip_sms_section",
+  "payslip_sms_intro",
+  "payslip_sms_template"
  ],
  "fields": [
   {
@@ -89,11 +92,28 @@
    "fieldtype": "Table",
    "label": "KRA Market Interest Rates",
    "options": "Kenya FBT Market Rate"
+  },
+  {
+   "fieldname": "payslip_sms_section",
+   "fieldtype": "Section Break",
+   "label": "Payslips by SMS"
+  },
+  {
+   "fieldname": "payslip_sms_intro",
+   "fieldtype": "HTML",
+   "options": "<p class=\"text-muted\">Sent from a submitted Payroll Entry (<b>Send Payslips by SMS</b>) or one Salary Slip (<b>Send by SMS</b>), to the mobile number on each Employee, through the Bulk SMS app. Keep it short: 160 characters is one SMS. Anyone holding the phone can read it, so it's a summary, not the payslip.</p>"
+  },
+  {
+   "default": "{{ employee_name }}, {{ month }} pay: gross {{ gross }}, deductions {{ deductions }}, net KES {{ net }}. {{ company }}",
+   "fieldname": "payslip_sms_template",
+   "fieldtype": "Small Text",
+   "label": "Payslip SMS Template",
+   "description": "Jinja. Available: {{ employee_name }}, {{ first_name }}, {{ month }}, {{ gross }}, {{ deductions }}, {{ net }}, {{ paye }}, {{ company }}, and {{ doc }} (the Salary Slip). Amounts are whole shillings with commas."
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-23 10:00:00.000000",
+ "modified": "2026-10-23 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kenya Payroll",
  "name": "Kenya Payroll Settings",

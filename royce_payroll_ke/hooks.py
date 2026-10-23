@@ -54,6 +54,11 @@ fixtures = [
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+# Payslips by SMS buttons (kenya_payroll/payslip_sms.py); shown only with the Bulk SMS app.
+doctype_js = {
+	"Payroll Entry": "public/js/payroll_entry.js",
+	"Salary Slip": "public/js/salary_slip.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
